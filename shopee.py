@@ -64,29 +64,31 @@ else:
 if st.button("Lihat Selengkapnya"):
     st.session_state.lihat_selengkapnya = True
 
-# --- Statistik Sentimen (Data Asli) ---
-st.subheader("Statistik Aspek (Data Asli)")
+# --- Statistik Distribusi Aspek dan Sentimen (Data Asli) ---
+st.subheader("Distribusi Sentimen per Aspek (Data Asli)")
 
-fig_sentimen, ax_sentimen = plt.subplots()
+# Plot statistik distribusi Aspek dan Sentimen dalam satu grafik
+plt.figure(figsize=(10, 6))
+ax = sns.countplot(data=df, x="Aspek", hue="Sentimen", palette="Set2")
 
-sentimen_counts = df["Aspek"].value_counts()
-sentimen_counts.plot(kind="bar", ax=ax_sentimen, color="skyblue")
-# Menambahkan angka di atas bar
-for i, v in enumerate(sentimen_counts):
-    ax_sentimen.text(i, v + 1, str(v), ha='center', va='bottom')
-st.pyplot(fig_sentimen)
+# Tambahkan judul dan label
+plt.title("Distribusi Sentimen per Aspek")
+plt.xlabel("Aspek")
+plt.ylabel("Jumlah Ulasan")
+plt.xticks(rotation=45, ha='right')
+plt.legend(title="Sentimen")
 
-# --- Statistik Sentimen (Data Asli) ---
-st.subheader("Statistik Sentimen (Data Asli)")
+# Menambahkan angka di atas bar tanpa desimal
+for p in ax.patches:
+    height = p.get_height()
+    if height > 0:
+        ax.annotate(f'{int(height)}', 
+                    (p.get_x() + p.get_width() / 2, height), 
+                    ha='center', va='bottom', fontsize=9)
 
-fig_sentimen, ax_sentimen = plt.subplots()
-
-sentimen_counts = df["Sentimen"].value_counts()
-sentimen_counts.plot(kind="bar", ax=ax_sentimen, color="lightgreen")
-# Menambahkan angka di atas bar
-for i, v in enumerate(sentimen_counts):
-    ax_sentimen.text(i, v + 1, str(v), ha='center', va='bottom')
-st.pyplot(fig_sentimen)
+# Layout yang rapi
+plt.tight_layout()
+st.pyplot(plt)
 
 # --- Input Ulasan Baru ---
 st.subheader("Input Ulasan Baru")
@@ -139,32 +141,34 @@ st.subheader("Hasil Prediksi")
 
 st.dataframe(st.session_state.data_pred)
 
-# --- Statistik Aspek (Prediksi) ---
-st.subheader("Statistik Aspek (Prediksi)")
+st.subheader("Statistik Aspek dan Sentimen (Prediksi)")
 
-fig_aspek_pred, ax_aspek_pred = plt.subplots()
+# Gabungkan statistik Aspek dan Sentimen Prediksi dalam satu plot
+fig_pred, ax_pred = plt.subplots(figsize=(10, 6))
 
-if not st.session_state.data_pred.empty and "Aspek" in st.session_state.data_pred.columns:
-    aspect_pred_counts = st.session_state.data_pred["Aspek"].value_counts()
-    aspect_pred_counts.plot(kind="bar", ax=ax_aspek_pred, color="skyblue")
+# Kombinasi Aspek dan Sentimen prediksi
+if not st.session_state.data_pred.empty:
+    pred_data = pd.concat([st.session_state.data_pred["Aspek"], st.session_state.data_pred["Sentimen"]], axis=1)
+    pred_data["Count"] = 1
+    pred_counts = pred_data.groupby(["Aspek", "Sentimen"]).count().unstack(fill_value=0)
+    pred_counts.columns = pred_counts.columns.droplevel()
+
+    # Plot bar chart
+    pred_counts.plot(kind="bar", stacked=False, ax=ax_pred, color=["skyblue", "lightgreen"])
+    
     # Menambahkan angka di atas bar
-    for i, v in enumerate(aspect_pred_counts):
-        ax_aspek_pred.text(i, v + 1, str(v), ha='center', va='bottom')
-    st.pyplot(fig_aspek_pred)
+    for p in ax_pred.patches:
+        height = p.get_height()
+        if height > 0:
+            ax_pred.annotate(f'{int(height)}', 
+                             (p.get_x() + p.get_width() / 2, height), 
+                             ha='center', va='bottom', fontsize=9)
+
+    ax_pred.set_title("Distribusi Aspek dan Sentimen (Prediksi)")
+    ax_pred.set_xlabel("Aspek")
+    ax_pred.set_ylabel("Jumlah Ulasan")
+    ax_pred.legend(title="Sentimen")
+
+    st.pyplot(fig_pred)
 else:
-    st.write("Belum ada data aspek untuk ditampilkan.")
-
-# --- Statistik Sentimen (Prediksi) ---
-st.subheader("Statistik Sentimen (Prediksi)")
-
-fig_sentimen_pred, ax_sentimen_pred = plt.subplots()
-
-if not st.session_state.data_pred.empty and "Sentimen" in st.session_state.data_pred.columns:
-    sentimen_pred_counts = st.session_state.data_pred["Sentimen"].value_counts()
-    sentimen_pred_counts.plot(kind="bar", ax=ax_sentimen_pred, color="lightgreen")
-    # Menambahkan angka di atas bar
-    for i, v in enumerate(sentimen_pred_counts):
-        ax_sentimen_pred.text(i, v + 1, str(v), ha='center', va='bottom')
-    st.pyplot(fig_sentimen_pred)
-else:
-    st.write("Belum ada data sentimen untuk ditampilkan.")
+    st.write("Belum ada data prediksi untuk ditampilkan.")
