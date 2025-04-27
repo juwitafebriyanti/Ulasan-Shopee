@@ -93,10 +93,23 @@ for i, v in enumerate(sentimen_counts):
     ax_sentimen.text(i, v + 1, str(v), ha='center', va='bottom')
 st.pyplot(fig_sentimen)
 
-# --- Input Ulasan Baru ---
-st.subheader("Input Ulasan Baru")
+# --- Simpan inputan ulasan ke session ---
+if "input_text" not in st.session_state:
+    st.session_state.input_text = ""
 
-input_text = st.text_area("Masukkan Ulasan", "")
+# --- Simpan hasil prediksi per model ---
+if "data_pred_catboost" not in st.session_state:
+    st.session_state.data_pred_catboost = pd.DataFrame(columns=["Ulasan", "Aspek", "Sentimen"])
+
+if "data_pred_gbc" not in st.session_state:
+    st.session_state.data_pred_gbc = pd.DataFrame(columns=["Ulasan", "Aspek", "Sentimen"])
+
+if "data_pred_voting" not in st.session_state:
+    st.session_state.data_pred_voting = pd.DataFrame(columns=["Ulasan", "Aspek", "Sentimen"])
+
+# --- Input Ulasan ---
+st.subheader("Input Ulasan Baru")
+input_text = st.text_area("Masukkan Ulasan", st.session_state.input_text)
 selected_model = st.selectbox(
     "Pilih Model",
     ("CatBoost", "GradientBoosting", "Gabungan (Voting)")
@@ -104,20 +117,16 @@ selected_model = st.selectbox(
 
 predict_btn = st.button("Prediksi")
 
-# Simpan ulasan + prediksi
-if "data_pred" not in st.session_state:
-    st.session_state.data_pred = pd.DataFrame(columns=["Ulasan", "Aspek", "Sentimen"])
-
-# Kalau klik prediksi
+# Kalau klik prediksi atau model berganti
 if predict_btn and input_text.strip() != "":
-    # Preprocess input
+    st.session_state.input_text = input_text  # Simpan input supaya bisa pakai lagi
     input_vec = vectorizer.transform([input_text])
 
-    # Sentimen
+    # Prediksi Sentimen
     pred_sentimen_cat = catboost_sentimen.predict(input_vec)[0]
     pred_sentimen_gbc = gbc_sentimen.predict(input_vec)[0]
 
-    # Aspek (jika ada)
+    # Prediksi Aspek
     if y_aspek is not None:
         pred_aspek_cat = catboost_aspek.predict(input_vec)[0]
         pred_aspek_gbc = gbc_aspek.predict(input_vec)[0]
@@ -126,25 +135,42 @@ if predict_btn and input_text.strip() != "":
         pred_aspek_gbc = "Unknown"
 
     # Gabungan Voting
-    if selected_model == "CatBoost":
-        final_sentimen = pred_sentimen_cat
-        final_aspek = pred_aspek_cat
-    elif selected_model == "GradientBoosting":
-        final_sentimen = pred_sentimen_gbc
-        final_aspek = pred_aspek_gbc
-    else:  # Voting
-        final_sentimen = pred_sentimen_cat if pred_sentimen_cat == pred_sentimen_gbc else "Netral"
-        final_aspek = pred_aspek_cat if pred_aspek_cat == pred_aspek_gbc else "Gabungan"
+    if pred_sentimen_cat == pred_sentimen_gbc:
+        pred_sentimen_vote = pred_sentimen_cat
+    else:
+        pred_sentimen_vote = "Netral"
 
-    # Tambahkan ke dataframe session
-    st.session_state.data_pred = pd.concat([st.session_state.data_pred, pd.DataFrame([{"Ulasan": input_text, "Aspek": final_aspek, "Sentimen": final_sentimen}])], ignore_index=True)
+    if pred_aspek_cat == pred_aspek_gbc:
+        pred_aspek_vote = pred_aspek_cat
+    else:
+        pred_aspek_vote = "Gabungan"
 
-# --- Display Result ---
-st.subheader("Hasil Prediksi")
+    # Simpan hasil berdasarkan model
+    st.session_state.data_pred_catboost = pd.concat([
+        st.session_state.data_pred_catboost,
+        pd.DataFrame([{"Ulasan": input_text, "Aspek": pred_aspek_cat, "Sentimen": pred_sentimen_cat}])
+    ], ignore_index=True)
 
-st.dataframe(st.session_state.data_pred)
+    st.session_state.data_pred_gbc = pd.concat([
+        st.session_state.data_pred_gbc,
+        pd.DataFrame([{"Ulasan": input_text, "Aspek": pred_aspek_gbc, "Sentimen": pred_sentimen_gbc}])
+    ], ignore_index=True)
 
-st.subheader("Statistik Aspek dan Sentimen (Prediksi)")
+    st.session_state.data_pred_voting = pd.concat([
+        st.session_state.data_pred_voting,
+        pd.DataFrame([{"Ulasan": input_text, "Aspek": pred_aspek_vote, "Sentimen": pred_sentimen_vote}])
+    ], ignore_index=True)
+
+# --- Tampilkan hasil sesuai model yang dipilih ---
+st.subheader(f"Hasil Prediksi ({selected_model})")
+
+if selected_model == "CatBoost":
+    st.dataframe(st.session_state.data_pred_catboost)
+elif selected_model == "GradientBoosting":
+    st.dataframe(st.session_state.data_pred_gbc)
+else:
+    st.dataframe(st.session_state.data_pred_voting)
+
 
 # --- Statistik Aspek (Prediksi) ---
 st.subheader("Statistik Aspek (Prediksi)")
