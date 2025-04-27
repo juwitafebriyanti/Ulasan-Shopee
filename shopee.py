@@ -13,7 +13,6 @@ df = pd.read_excel("Dataset/ulasan_shopee_preprocessed.xlsx")  # Pastikan path b
 X_raw = df['Ulasan_Clean']
 y_sentimen = df['Sentimen']
 
-# Kalau ada kolom Aspek
 if 'Aspek' in df.columns:
     y_aspek = df['Aspek']
 else:
@@ -33,7 +32,6 @@ gbc_sentimen.fit(X_train, y_train_sentimen)
 catboost_sentimen = CatBoostClassifier(verbose=0, random_state=42)
 catboost_sentimen.fit(X_train, y_train_sentimen)
 
-# Kalau aspek juga mau diprediksi
 if y_aspek is not None:
     y_train_aspek, y_test_aspek = train_test_split(y_aspek, test_size=0.2, random_state=42)
     gbc_aspek = GradientBoostingClassifier(random_state=42)
@@ -42,18 +40,33 @@ if y_aspek is not None:
     catboost_aspek.fit(X_train, y_train_aspek)
 
 # --- Streamlit App ---
-st.title("Analisis Kepuasan Pengguna Shopee 🛒")
+# Bikin title di tengah
+st.markdown("<h1 style='text-align: center;'>Analisis Kepuasan Pengguna Shopee 🛒</h1>", unsafe_allow_html=True)
 st.write("Prediksi Aspek dan Sentimen Ulasan Shopee")
 
 # --- Display Data Ulasan ---
 st.subheader("Data Ulasan Shopee")
+
+# Hanya tampilkan kolom Ulasan_Clean, Aspek, Sentimen
+df_display = df[['Ulasan_Clean', 'Aspek', 'Sentimen']]
+
 if 'lihat_selengkapnya' not in st.session_state:
     st.session_state.lihat_selengkapnya = False
 
 if st.session_state.lihat_selengkapnya:
-    st.dataframe(df)
+    show_df = df_display
 else:
-    st.dataframe(df.head(10))
+    show_df = df_display.head(10)
+
+# Tampilkan tabel tanpa index dan dengan style wrapping teks
+st.dataframe(
+    show_df.style.set_properties(**{
+        'white-space': 'pre-wrap',        # Biar teks panjang turun ke bawah
+        'word-wrap': 'break-word'          # Biar kata dipotong kalo kepanjangan
+    }),
+    hide_index=True,                      # Sembunyikan index angka
+    use_container_width=True              # Biar tabel penuh lebarnya
+)
 
 if st.button("Lihat Selengkapnya"):
     st.session_state.lihat_selengkapnya = True
@@ -83,7 +96,6 @@ st.subheader("Input Ulasan Baru")
 
 input_text = st.text_area("Masukkan Ulasan", "")
 
-# Menyimpan input ulasan ke session state
 if "input_text_saved" not in st.session_state:
     st.session_state.input_text_saved = ""
 
@@ -93,7 +105,6 @@ if st.button("Simpan Ulasan"):
     else:
         st.warning("Masukkan ulasan terlebih dahulu!")
 
-# Kalau sudah ada input tersimpan, tampilkan
 if st.session_state.input_text_saved != "":
     st.success(f"Ulasan disimpan: {st.session_state.input_text_saved}")
 
@@ -104,7 +115,6 @@ if st.session_state.input_text_saved != "":
 
     predict_btn = st.button("Prediksi dengan Model Terpilih")
 
-    # Session untuk menyimpan hasil prediksi per model
     if "data_pred_per_model" not in st.session_state:
         st.session_state.data_pred_per_model = {
             "CatBoost": pd.DataFrame(columns=["Ulasan", "Aspek", "Sentimen"]),
@@ -115,11 +125,9 @@ if st.session_state.input_text_saved != "":
     if predict_btn:
         input_vec = vectorizer.transform([st.session_state.input_text_saved])
 
-        # Prediksi Sentimen
         pred_sentimen_cat = catboost_sentimen.predict(input_vec)[0]
         pred_sentimen_gbc = gbc_sentimen.predict(input_vec)[0]
 
-        # Prediksi Aspek
         if y_aspek is not None:
             pred_aspek_cat = catboost_aspek.predict(input_vec)[0]
             pred_aspek_gbc = gbc_aspek.predict(input_vec)[0]
@@ -127,18 +135,16 @@ if st.session_state.input_text_saved != "":
             pred_aspek_cat = "Unknown"
             pred_aspek_gbc = "Unknown"
 
-        # Voting Model
         if selected_model == "CatBoost":
             final_sentimen = pred_sentimen_cat
             final_aspek = pred_aspek_cat
         elif selected_model == "GradientBoosting":
             final_sentimen = pred_sentimen_gbc
             final_aspek = pred_aspek_gbc
-        else:  # Voting
+        else:
             final_sentimen = pred_sentimen_cat if pred_sentimen_cat == pred_sentimen_gbc else "Netral"
             final_aspek = pred_aspek_cat if pred_aspek_cat == pred_aspek_gbc else "Gabungan"
 
-        # Simpan hasil ke dataframe model tertentu
         st.session_state.data_pred_per_model[selected_model] = pd.concat([
             st.session_state.data_pred_per_model[selected_model],
             pd.DataFrame([{
@@ -148,7 +154,6 @@ if st.session_state.input_text_saved != "":
             }])
         ], ignore_index=True)
 
-# --- Pastikan data_pred_per_model sudah ada di session_state ---
 if "data_pred_per_model" not in st.session_state:
     st.session_state.data_pred_per_model = {
         "CatBoost": pd.DataFrame(columns=["Ulasan", "Aspek", "Sentimen"]),
@@ -162,27 +167,13 @@ st.subheader("Hasil Prediksi per Model")
 for model_name, df_model in st.session_state.data_pred_per_model.items():
     st.write(f"### {model_name}")
     if not df_model.empty:
-        st.dataframe(df_model)
+        st.dataframe(
+            df_model.style.set_properties(**{
+                'white-space': 'pre-wrap',
+                'word-wrap': 'break-word'
+            }),
+            hide_index=True,
+            use_container_width=True
+        )
     else:
         st.write("Belum ada prediksi untuk model ini.")
-
-# --- Statistik Prediksi ---
-st.subheader("Statistik Aspek dan Sentimen (Prediksi) per Model")
-
-for model_name, df_model in st.session_state.data_pred_per_model.items():
-    if not df_model.empty:
-        st.subheader(f"Statistik Aspek - {model_name}")
-        fig_aspek_pred, ax_aspek_pred = plt.subplots()
-        aspect_pred_counts = df_model['Aspek'].value_counts()
-        aspect_pred_counts.plot(kind="bar", ax=ax_aspek_pred, color="skyblue")
-        for i, v in enumerate(aspect_pred_counts):
-            ax_aspek_pred.text(i, v + 1, str(v), ha='center', va='bottom')
-        st.pyplot(fig_aspek_pred)
-
-        st.subheader(f"Statistik Sentimen - {model_name}")
-        fig_sentimen_pred, ax_sentimen_pred = plt.subplots()
-        sentimen_pred_counts = df_model['Sentimen'].value_counts()
-        sentimen_pred_counts.plot(kind="bar", ax=ax_sentimen_pred, color="lightgreen")
-        for i, v in enumerate(sentimen_pred_counts):
-            ax_sentimen_pred.text(i, v + 1, str(v), ha='center', va='bottom')
-        st.pyplot(fig_sentimen_pred)
