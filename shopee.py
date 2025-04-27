@@ -7,6 +7,7 @@ from sklearn.ensemble import GradientBoostingClassifier
 from catboost import CatBoostClassifier
 import numpy as np
 
+
 # --- Load Dataset ---
 df = pd.read_excel("Dataset/ulasan_shopee_preprocessed.xlsx")  # Pastikan path benar
 
@@ -223,33 +224,34 @@ if model_to_view != "-":
         st.write("Belum ada data sentimen.")
 
 
+# --- Statistik Aspek & Sentimen (Prediksi berdasarkan model yang dipilih) ---
+st.subheader("Statistik Aspek & Sentimen (Prediksi Model Terpilih)")
 
-# --- Statistik Aspek (Prediksi) ---
-st.subheader("Statistik Aspek (Prediksi)")
+if model_to_view != "-":
+    if model_to_view == "CatBoost":
+        df_pred = st.session_state.data_pred_catboost
+    elif model_to_view == "GradientBoosting":
+        df_pred = st.session_state.data_pred_gbc
+    else:
+        df_pred = st.session_state.data_pred_voting
 
-fig_aspek_pred, ax_aspek_pred = plt.subplots()
+    if not df_pred.empty:
+        # Statistik Aspek
+        st.subheader(f"Statistik Aspek ({model_to_view}) - Prediksi")
+        fig_aspek_pred, ax_aspek_pred = plt.subplots()
+        df_pred["Aspek"].value_counts().plot(kind="bar", ax=ax_aspek_pred, color="skyblue")
+        for i, v in enumerate(df_pred["Aspek"].value_counts()):
+            ax_aspek_pred.text(i, v + 1, str(v), ha='center', va='bottom')
+        st.pyplot(fig_aspek_pred)
 
-if not st.session_state.data_pred.empty and "Aspek" in st.session_state.data_pred.columns:
-    aspect_pred_counts = st.session_state.data_pred["Aspek"].value_counts()
-    aspect_pred_counts.plot(kind="bar", ax=ax_aspek_pred, color="skyblue")
-    # Menambahkan angka di atas bar
-    for i, v in enumerate(aspect_pred_counts):
-        ax_aspek_pred.text(i, v + 1, str(v), ha='center', va='bottom')
-    st.pyplot(fig_aspek_pred)
-else:
-    st.write("Belum ada data aspek untuk ditampilkan.")
+        # Statistik Sentimen
+        st.subheader(f"Statistik Sentimen ({model_to_view}) - Prediksi")
+        fig_sentimen_pred, ax_sentimen_pred = plt.subplots()
+        df_pred["Sentimen"].value_counts().plot(kind="bar", ax=ax_sentimen_pred, color="lightgreen")
+        for i, v in enumerate(df_pred["Sentimen"].value_counts()):
+            ax_sentimen_pred.text(i, v + 1, str(v), ha='center', va='bottom')
+        st.pyplot(fig_sentimen_pred)
 
-# --- Statistik Sentimen (Prediksi) ---
-st.subheader("Statistik Sentimen (Prediksi)")
+    else:
+        st.write("Belum ada data prediksi untuk model ini.")
 
-fig_sentimen_pred, ax_sentimen_pred = plt.subplots()
-
-if not st.session_state.data_pred.empty and "Sentimen" in st.session_state.data_pred.columns:
-    sentimen_pred_counts = st.session_state.data_pred["Sentimen"].value_counts()
-    sentimen_pred_counts.plot(kind="bar", ax=ax_sentimen_pred, color="lightgreen")
-    # Menambahkan angka di atas bar
-    for i, v in enumerate(sentimen_pred_counts):
-        ax_sentimen_pred.text(i, v + 1, str(v), ha='center', va='bottom')
-    st.pyplot(fig_sentimen_pred)
-else:
-    st.write("Belum ada data sentimen untuk ditampilkan.")
