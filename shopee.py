@@ -7,7 +7,6 @@ from sklearn.ensemble import GradientBoostingClassifier
 from catboost import CatBoostClassifier
 import numpy as np
 
-
 # --- Load Dataset ---
 df = pd.read_excel("Dataset/ulasan_shopee_preprocessed.xlsx")  # Pastikan path benar
 
@@ -47,52 +46,6 @@ if y_aspek is not None:
 # --- Streamlit App ---
 st.title("Analisis Kepuasan Pengguna Shopee 🛒")
 st.write("Prediksi Aspek dan Sentimen Ulasan Shopee")
-
-# --- Display Data Ulasan ---
-st.subheader("Data Ulasan Shopee")
-# Menampilkan 10 data pertama
-if 'lihat_selengkapnya' not in st.session_state:
-    st.session_state.lihat_selengkapnya = False
-
-if st.session_state.lihat_selengkapnya:
-    # Menampilkan seluruh data jika tombol sudah diklik
-    st.dataframe(df)
-else:
-    # Menampilkan hanya 10 data pertama
-    st.dataframe(df.head(10))
-
-# Tombol untuk melihat data selengkapnya
-if st.button("Lihat Selengkapnya"):
-    st.session_state.lihat_selengkapnya = True
-
-import seaborn as sns
-
-# --- Statistik Aspek (Data Asli) ---
-st.subheader("Statistik Aspek (Data Asli)")
-
-fig_aspek, ax_aspek = plt.subplots()
-
-if 'Aspek' in df.columns:
-    aspect_counts = df["Aspek"].value_counts()
-    aspect_counts.plot(kind="bar", ax=ax_aspek, color="skyblue")
-    # Menambahkan angka di atas bar
-    for i, v in enumerate(aspect_counts):
-        ax_aspek.text(i, v + 1, str(v), ha='center', va='bottom')
-    st.pyplot(fig_aspek)
-else:
-    st.write("Data aspek tidak tersedia.")
-
-# --- Statistik Sentimen (Data Asli) ---
-st.subheader("Statistik Sentimen (Data Asli)")
-
-fig_sentimen, ax_sentimen = plt.subplots()
-
-sentimen_counts = df["Sentimen"].value_counts()
-sentimen_counts.plot(kind="bar", ax=ax_sentimen, color="lightgreen")
-# Menambahkan angka di atas bar
-for i, v in enumerate(sentimen_counts):
-    ax_sentimen.text(i, v + 1, str(v), ha='center', va='bottom')
-st.pyplot(fig_sentimen)
 
 # --- Simpan inputan ulasan dan hasil prediksi ---
 if "input_text" not in st.session_state:
@@ -142,7 +95,7 @@ if predict_btn and input_text.strip() != "":
     pred_sentimen_vote = pred_sentimen_cat if pred_sentimen_cat == pred_sentimen_gbc else "Netral"
     pred_aspek_vote = pred_aspek_cat if pred_aspek_cat == pred_aspek_gbc else "Gabungan"
 
-    # Simpan hasil terakhir
+    # Simpan hasil terakhir berdasarkan model yang dipilih
     if selected_model == "CatBoost":
         st.session_state.last_prediction = {
             "Ulasan": input_text,
@@ -222,36 +175,3 @@ if model_to_view != "-":
         st.pyplot(fig_sentimen)
     else:
         st.write("Belum ada data sentimen.")
-
-
-# --- Statistik Aspek & Sentimen (Prediksi berdasarkan model yang dipilih) ---
-st.subheader("Statistik Aspek & Sentimen (Prediksi Model Terpilih)")
-
-if model_to_view != "-":
-    if model_to_view == "CatBoost":
-        df_pred = st.session_state.data_pred_catboost
-    elif model_to_view == "GradientBoosting":
-        df_pred = st.session_state.data_pred_gbc
-    else:
-        df_pred = st.session_state.data_pred_voting
-
-    if not df_pred.empty:
-        # Statistik Aspek
-        st.subheader(f"Statistik Aspek ({model_to_view}) - Prediksi")
-        fig_aspek_pred, ax_aspek_pred = plt.subplots()
-        df_pred["Aspek"].value_counts().plot(kind="bar", ax=ax_aspek_pred, color="skyblue")
-        for i, v in enumerate(df_pred["Aspek"].value_counts()):
-            ax_aspek_pred.text(i, v + 1, str(v), ha='center', va='bottom')
-        st.pyplot(fig_aspek_pred)
-
-        # Statistik Sentimen
-        st.subheader(f"Statistik Sentimen ({model_to_view}) - Prediksi")
-        fig_sentimen_pred, ax_sentimen_pred = plt.subplots()
-        df_pred["Sentimen"].value_counts().plot(kind="bar", ax=ax_sentimen_pred, color="lightgreen")
-        for i, v in enumerate(df_pred["Sentimen"].value_counts()):
-            ax_sentimen_pred.text(i, v + 1, str(v), ha='center', va='bottom')
-        st.pyplot(fig_sentimen_pred)
-
-    else:
-        st.write("Belum ada data prediksi untuk model ini.")
-
