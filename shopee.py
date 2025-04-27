@@ -1,74 +1,63 @@
 import streamlit as st
 import pandas as pd
-import re
-import string
-import emoji
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import GradientBoostingClassifier
+from catboost import CatBoostClassifier  # Pastikan CatBoost diinstal
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+import numpy as np
+
+# --- Load Dataset ---
+df = pd.read_excel("Dataset/ulasan_shopee_preprocessed.xlsx")  # Pastikan path benar
 
 # --- Load Data ---
-df = pd.read_excel("ulasan_shopee_preprocessed.xlsx")
+X_raw = df['Ulasan_Clean']
+y_sentimen = df['Sentimen']
 
-# List Kata Kunci Aspek
-aspek_harga = ['murah', 'mahal', 'ongkir', 'diskon', 'promo', 'cashback']
-aspek_pelayanan = ['cs', 'customer service', 'komplain', 'balasan', 'pengaduan', 'pelayanan']
-aspek_aplikasi = ['error', 'lemot', 'fitur', 'update', 'login', 'sistem', 'bug']
+# Kalau ada kolom Aspek, misal Aspek Ulasan
+if 'Aspek' in df.columns:
+    y_aspek = df['Aspek']
+else:
+    y_aspek = None
 
-# Function Klasifikasi Multi-Aspek
-def aspek_klasifikasi(ulasan):
-    ulasan = ulasan.lower()  # Ubah jadi huruf kecil semua
-    aspek_list = []
+# --- TF-IDF ---
+vectorizer = TfidfVectorizer(max_features=5000)
+X = vectorizer.fit_transform(X_raw)
 
-    if any(re.search(r'\b' + word + r'\b', ulasan) for word in aspek_harga):
-        aspek_list.append('Harga')
-    if any(re.search(r'\b' + word + r'\b', ulasan) for word in aspek_pelayanan):
-        aspek_list.append('Pelayanan')
-    if any(re.search(r'\b' + word + r'\b', ulasan) for word in aspek_aplikasi):
-        aspek_list.append('Aplikasi')
+# --- Split Data ---
+X_train, X_test, y_train_sentimen, y_test_sentimen = train_test_split(X, y_sentimen, test_size=0.2, random_state=42)
 
-    return ', '.join(aspek_list) if aspek_list else None  # Jika kosong, return None
+# --- Train Models ---
+gbc_sentimen = GradientBoostingClassifier(random_state=42)
+gbc_sentimen.fit(X_train, y_train_sentimen)
 
-# Daftar Kata Positif dan Negatif untuk Sentimen
-kata_positif = ['bagus', 'puas', 'mantap', 'baik', 'cepat', 'murah', 'ramah', 'oke', 'senang']
-kata_negatif = ['buruk', 'lambat', 'jelek', 'tidak puas', 'parah', 'mahal', 'kecewa', 'lemot', 'error']
+# CatBoost model
+catboost_sentimen = CatBoostClassifier(verbose=0, random_state=42)
+catboost_sentimen.fit(X_train, y_train_sentimen)
 
-# Function Analisis Sentimen
-def analisis_sentimen(ulasan):
-    ulasan = str(ulasan).lower()
-    skor = 0
-
-    for kata in kata_positif:
-        if kata in ulasan:
-            skor += 1
-    for kata in kata_negatif:
-        if kata in ulasan:
-            skor -= 1
-
-    if skor > 0:
-        return 'Positif'
-    elif skor < 0:
-        return 'Negatif'
-    else:
-        return 'Netral'
-
-# Fungsi untuk membersihkan teks
-def clean_text(text):
-    text = text.lower()  # Ubah ke huruf kecil
-    text = re.sub(r'http\S+', '', text)  # Hapus link
-    text = re.sub(r'@\w+|\#', '', text)  # Hapus mention dan hashtag
-    text = text.translate(str.maketrans('', '', string.punctuation))  # Hapus tanda baca
-    text = emoji.replace_emoji(text, replace='')  # Hapus emoji
-    text = re.sub(r'[ᗒᗣᗕ՞]', '', text)  # Hapus karakter khusus
-    text = re.sub(r'[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼²³⁴⁵⁶⁷⁸⁹]', '', text)  # Hapus tanda superscript/subscript
-    text = text.strip()  # Hapus spasi berlebih
-    return text
+# Kalau mau aspek juga diprediksi, perlu training model aspek juga
+if y_aspek is not None:
+    y_train_aspek, y_test_aspek = train_test_split(y_aspek, test_size=0.2, random_state=42)
+    gbc_aspek = GradientBoostingClassifier(random_state=42)
+    gbc_aspek.fit(X_train, y_train_aspek)
+    catboost_aspek = CatBoostClassifier(verbose=0, random_state=42)
+    catboost_aspek.fit(X_train, y_train_aspek)
 
 # --- Streamlit App ---
+
 st.title("Analisis Kepuasan Pengguna Shopee 🛒")
 st.write("Prediksi Aspek dan Sentimen Ulasan Shopee")
 
-# Input Ulasan
-st.subheader("Masukkan Ulasan Baru")
+# Input
+st.subheader("Input Ulasan Baru")
 
 input_text = st.text_area("Masukkan Ulasan", "")
+selected_model = st.selectbox(
+    "Pilih Model",
+    ("CatBoost", "GradientBoosting", "Gabungan (Voting)")
+)
 
 predict_btn = st.button("Prediksi")
 
@@ -78,19 +67,36 @@ if "data_pred" not in st.session_state:
 
 # Kalau klik prediksi
 if predict_btn and input_text.strip() != "":
-    # Preprocessing
-    cleaned_text = clean_text(input_text)
-
-    # Klasifikasi Aspek
-    aspek_pred = aspek_klasifikasi(cleaned_text)
+    # Preprocess input
+    input_vec = vectorizer.transform([input_text])
 
     # Sentimen
-    sentimen_pred = analisis_sentimen(cleaned_text)
+    pred_sentimen_cat = catboost_sentimen.predict(input_vec)[0]
+    pred_sentimen_gbc = gbc_sentimen.predict(input_vec)[0]
 
-    # Tambahkan hasil prediksi ke dataframe
-    st.session_state.data_pred = pd.concat([st.session_state.data_pred, pd.DataFrame([{"Ulasan": input_text, "Aspek": aspek_pred, "Sentimen": sentimen_pred}])], ignore_index=True)
+    # Aspek (jika ada)
+    if y_aspek is not None:
+        pred_aspek_cat = catboost_aspek.predict(input_vec)[0]
+        pred_aspek_gbc = gbc_aspek.predict(input_vec)[0]
+    else:
+        pred_aspek_cat = "Unknown"
+        pred_aspek_gbc = "Unknown"
 
-# --- Display Hasil Prediksi ---
+    # Gabungan Voting
+    if selected_model == "CatBoost":
+        final_sentimen = pred_sentimen_cat
+        final_aspek = pred_aspek_cat
+    elif selected_model == "GradientBoosting":
+        final_sentimen = pred_sentimen_gbc
+        final_aspek = pred_aspek_gbc
+    else:  # Voting
+        final_sentimen = pred_sentimen_cat if pred_sentimen_cat == pred_sentimen_gbc else "Netral"
+        final_aspek = pred_aspek_cat if pred_aspek_cat == pred_aspek_gbc else "Gabungan"
+
+    # Tambahkan ke dataframe session
+    st.session_state.data_pred = pd.concat([st.session_state.data_pred, pd.DataFrame([{"Ulasan": input_text, "Aspek": final_aspek, "Sentimen": final_sentimen}])], ignore_index=True)
+
+# --- Display Result ---
 st.subheader("Hasil Prediksi")
 
 st.dataframe(st.session_state.data_pred)
@@ -105,3 +111,4 @@ st.subheader("Statistik Sentimen")
 fig_sentimen, ax_sentimen = plt.subplots()
 st.session_state.data_pred["Sentimen"].value_counts().plot(kind="bar", ax=ax_sentimen, color="lightgreen")
 st.pyplot(fig_sentimen)
+
