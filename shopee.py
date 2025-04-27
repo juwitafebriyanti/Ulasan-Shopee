@@ -64,32 +64,32 @@ else:
 if st.button("Lihat Selengkapnya"):
     st.session_state.lihat_selengkapnya = True
 
-# --- Statistik Aspek (Data Asli) ---
-st.subheader("Statistik Aspek (Data Asli)")
-
-fig_aspek, ax_aspek = plt.subplots()
+# --- Statistik Distribusi Sentimen per Aspek (Data Asli) ---
+st.subheader("Distribusi Sentimen per Aspek (Data Asli)")
 
 if 'Aspek' in df.columns:
-    aspect_counts = df["Aspek"].value_counts()
-    aspect_counts.plot(kind="bar", ax=ax_aspek, color="skyblue")
-    # Menambahkan angka di atas bar
-    for i, v in enumerate(aspect_counts):
-        ax_aspek.text(i, v + 1, str(v), ha='center', va='bottom')
-    st.pyplot(fig_aspek)
+    fig, ax = plt.subplots(figsize=(10,6))
+
+    # Hitung jumlah untuk kombinasi Aspek & Sentimen
+    aspek_sentimen_counts = df.groupby(['Aspek', 'Sentimen']).size().unstack(fill_value=0)
+
+    # Plot grouped bar chart
+    aspek_sentimen_counts.plot(kind='bar', ax=ax, width=0.8)
+
+    ax.set_title('Distribusi Sentimen per Aspek')
+    ax.set_xlabel('Aspek')
+    ax.set_ylabel('Jumlah Ulasan')
+    ax.legend(title="Sentimen")
+    plt.xticks(rotation=45, ha='right')
+
+    # Tambahkan angka di atas bar
+    for container in ax.containers:
+        ax.bar_label(container, fmt='%d', label_type='edge', padding=2)
+
+    st.pyplot(fig)
 else:
     st.write("Data aspek tidak tersedia.")
 
-# --- Statistik Sentimen (Data Asli) ---
-st.subheader("Statistik Sentimen (Data Asli)")
-
-fig_sentimen, ax_sentimen = plt.subplots()
-
-sentimen_counts = df["Sentimen"].value_counts()
-sentimen_counts.plot(kind="bar", ax=ax_sentimen, color="lightgreen")
-# Menambahkan angka di atas bar
-for i, v in enumerate(sentimen_counts):
-    ax_sentimen.text(i, v + 1, str(v), ha='center', va='bottom')
-st.pyplot(fig_sentimen)
     
 # --- Input Ulasan Baru ---
 st.subheader("Input Ulasan Baru")
@@ -144,32 +144,29 @@ st.dataframe(st.session_state.data_pred)
 
 st.subheader("Statistik Aspek dan Sentimen (Prediksi)")
 
-# --- Statistik Aspek (Prediksi) ---
-st.subheader("Statistik Aspek (Prediksi)")
-
-fig_aspek_pred, ax_aspek_pred = plt.subplots()
+# --- Statistik Distribusi Sentimen per Aspek (Prediksi) ---
+st.subheader("Distribusi Sentimen per Aspek (Prediksi)")
 
 if not st.session_state.data_pred.empty and "Aspek" in st.session_state.data_pred.columns:
-    aspect_pred_counts = st.session_state.data_pred["Aspek"].value_counts()
-    aspect_pred_counts.plot(kind="bar", ax=ax_aspek_pred, color="skyblue")
-    # Menambahkan angka di atas bar
-    for i, v in enumerate(aspect_pred_counts):
-        ax_aspek_pred.text(i, v + 1, str(v), ha='center', va='bottom')
-    st.pyplot(fig_aspek_pred)
+    fig_pred, ax_pred = plt.subplots(figsize=(10,6))
+
+    # Hitung jumlah untuk kombinasi Aspek & Sentimen
+    aspek_sentimen_pred_counts = st.session_state.data_pred.groupby(['Aspek', 'Sentimen']).size().unstack(fill_value=0)
+
+    # Plot grouped bar chart
+    aspek_sentimen_pred_counts.plot(kind='bar', ax=ax_pred, width=0.8)
+
+    ax_pred.set_title('Distribusi Sentimen per Aspek (Prediksi)')
+    ax_pred.set_xlabel('Aspek')
+    ax_pred.set_ylabel('Jumlah Ulasan')
+    ax_pred.legend(title="Sentimen")
+    plt.xticks(rotation=45, ha='right')
+
+    # Tambahkan angka di atas bar
+    for container in ax_pred.containers:
+        ax_pred.bar_label(container, fmt='%d', label_type='edge', padding=2)
+
+    st.pyplot(fig_pred)
 else:
     st.write("Belum ada data aspek untuk ditampilkan.")
 
-# --- Statistik Sentimen (Prediksi) ---
-st.subheader("Statistik Sentimen (Prediksi)")
-
-fig_sentimen_pred, ax_sentimen_pred = plt.subplots()
-
-if not st.session_state.data_pred.empty and "Sentimen" in st.session_state.data_pred.columns:
-    sentimen_pred_counts = st.session_state.data_pred["Sentimen"].value_counts()
-    sentimen_pred_counts.plot(kind="bar", ax=ax_sentimen_pred, color="lightgreen")
-    # Menambahkan angka di atas bar
-    for i, v in enumerate(sentimen_pred_counts):
-        ax_sentimen_pred.text(i, v + 1, str(v), ha='center', va='bottom')
-    st.pyplot(fig_sentimen_pred)
-else:
-    st.write("Belum ada data sentimen untuk ditampilkan.")
