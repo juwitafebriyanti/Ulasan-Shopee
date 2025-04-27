@@ -7,6 +7,11 @@ from sklearn.ensemble import GradientBoostingClassifier
 from catboost import CatBoostClassifier
 import numpy as np
 
+st.session_state.data_pred = st.session_state.data_pred_catboost.copy()
+st.session_state.data_pred = st.session_state.data_pred.append(st.session_state.data_pred_gbc, ignore_index=True)
+st.session_state.data_pred = st.session_state.data_pred.append(st.session_state.data_pred_voting, ignore_index=True)
+
+
 # --- Load Dataset ---
 df = pd.read_excel("Dataset/ulasan_shopee_preprocessed.xlsx")  # Pastikan path benar
 
