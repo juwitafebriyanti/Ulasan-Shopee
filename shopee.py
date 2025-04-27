@@ -64,45 +64,32 @@ else:
 if st.button("Lihat Selengkapnya"):
     st.session_state.lihat_selengkapnya = True
 
-# --- Statistik Distribusi Sentimen per Aspek (Data Asli) ---
 # --- Statistik Aspek dan Sentimen (Data Asli) ---
 st.subheader("Statistik Aspek dan Sentimen (Data Asli)")
 
-fig_aspek_sentimen, ax_aspek_sentimen = plt.subplots(figsize=(12,6))
+fig_aspek_sentimen_asli, ax_aspek_sentimen_asli = plt.subplots(figsize=(12,6))
 
 if 'Aspek' in df.columns and 'Sentimen' in df.columns:
-    count_data = df.groupby(['Aspek', 'Sentimen']).size().unstack(fill_value=0)
+    # Group by Aspek dan Sentimen
+    aspek_sentimen_asli = df.groupby(["Aspek", "Sentimen"]).size().unstack(fill_value=0)
 
-    aspek = count_data.index.tolist()
-    sentimen = ['Positif', 'Netral', 'Negatif']
-    colors = ['#2ecc71', '#f39c12', '#9b59b6']  # hijau, oranye, ungu
+    aspek_sentimen_asli.plot(kind="bar", stacked=False, ax=ax_aspek_sentimen_asli, color=["mediumseagreen", "sandybrown", "cornflowerblue"])
 
-    x = np.arange(len(aspek))
-    width = 0.25
+    for container in ax_aspek_sentimen_asli.containers:
+        ax_aspek_sentimen_asli.bar_label(container, label_type='edge', fontsize=8)
 
-    for idx, s in enumerate(sentimen):
-        ax_aspek_sentimen.bar(x + idx*width, count_data[s], width, label=s, color=colors[idx])
+    ax_aspek_sentimen_asli.set_xlabel("Aspek")
+    ax_aspek_sentimen_asli.set_ylabel("Jumlah Ulasan")
+    ax_aspek_sentimen_asli.set_title("Distribusi Sentimen per Aspek (Data Asli)")
+    ax_aspek_sentimen_asli.legend(title="Sentimen")
+    ax_aspek_sentimen_asli.grid(axis='y', linestyle='--', alpha=0.7)
+    plt.xticks(rotation=45, ha='right')
 
-        # Kasih label angka di atas bar
-        for i in range(len(aspek)):
-            ax_aspek_sentimen.text(x[i] + idx*width, count_data[s][i] + 1, str(count_data[s][i]),
-                                   ha='center', va='bottom', fontsize=8)
-
-    ax_aspek_sentimen.set_xlabel('Aspek')
-    ax_aspek_sentimen.set_ylabel('Jumlah Ulasan')
-    ax_aspek_sentimen.set_title('Distribusi Aspek dan Sentimen (Data Asli)')
-    ax_aspek_sentimen.set_xticks(x + width)
-    ax_aspek_sentimen.set_xticklabels(aspek, rotation=45, ha='right')
-    ax_aspek_sentimen.legend(title='Sentimen')
-    ax_aspek_sentimen.grid(axis='y', linestyle='--', alpha=0.7)
-
-    st.pyplot(fig_aspek_sentimen)
+    st.pyplot(fig_aspek_sentimen_asli)
 
 else:
-    st.write("Kolom Aspek atau Sentimen tidak ditemukan.")
+    st.write("Data aspek dan sentimen tidak tersedia.")
 
-
-    
 # --- Input Ulasan Baru ---
 st.subheader("Input Ulasan Baru")
 
