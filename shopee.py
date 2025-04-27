@@ -64,31 +64,42 @@ else:
 if st.button("Lihat Selengkapnya"):
     st.session_state.lihat_selengkapnya = True
 
+import seaborn as sns
+
 # --- Statistik Aspek dan Sentimen (Data Asli) ---
 st.subheader("Statistik Aspek dan Sentimen (Data Asli)")
 
-fig_aspek_sentimen_asli, ax_aspek_sentimen_asli = plt.subplots(figsize=(12,6))
+fig_aspek_sentimen_asli, ax = plt.subplots(figsize=(12,6))
 
 if 'Aspek' in df.columns and 'Sentimen' in df.columns:
-    # Group by Aspek dan Sentimen
-    aspek_sentimen_asli = df.groupby(["Aspek", "Sentimen"]).size().unstack(fill_value=0)
+    # Hitung jumlah ulasan per Aspek dan Sentimen
+    grouped = df.groupby(['Aspek', 'Sentimen']).size().reset_index(name='Jumlah')
 
-    aspek_sentimen_asli.plot(kind="bar", stacked=False, ax=ax_aspek_sentimen_asli, color=["mediumseagreen", "sandybrown", "cornflowerblue"])
+    # Plot dengan seaborn
+    sns.barplot(
+        data=grouped,
+        x='Aspek',
+        y='Jumlah',
+        hue='Sentimen',
+        palette={"Positif":"mediumseagreen", "Netral":"sandybrown", "Negatif":"cornflowerblue"},
+        ax=ax
+    )
 
-    for container in ax_aspek_sentimen_asli.containers:
-        ax_aspek_sentimen_asli.bar_label(container, label_type='edge', fontsize=8)
+    # Tambahin label angka di atas bar
+    for c in ax.containers:
+        ax.bar_label(c, label_type='edge', fontsize=8)
 
-    ax_aspek_sentimen_asli.set_xlabel("Aspek")
-    ax_aspek_sentimen_asli.set_ylabel("Jumlah Ulasan")
-    ax_aspek_sentimen_asli.set_title("Distribusi Sentimen per Aspek (Data Asli)")
-    ax_aspek_sentimen_asli.legend(title="Sentimen")
-    ax_aspek_sentimen_asli.grid(axis='y', linestyle='--', alpha=0.7)
+    ax.set_title("Distribusi Sentimen per Aspek (Data Asli)")
+    ax.set_xlabel("Aspek")
+    ax.set_ylabel("Jumlah Ulasan")
+    ax.legend(title="Sentimen")
     plt.xticks(rotation=45, ha='right')
+    ax.grid(axis='y', linestyle='--', alpha=0.7)
 
     st.pyplot(fig_aspek_sentimen_asli)
-
 else:
     st.write("Data aspek dan sentimen tidak tersedia.")
+
 
 
 # --- Input Ulasan Baru ---
