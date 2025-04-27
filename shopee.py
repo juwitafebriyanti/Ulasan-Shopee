@@ -5,44 +5,45 @@ import matplotlib.pyplot as plt
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import GradientBoostingClassifier
+from catboost import CatBoostClassifier  # Pastikan CatBoost diinstal
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
-# from catboost import CatBoostClassifier
 import numpy as np
 
 # --- Load Dataset ---
 df = pd.read_excel("Dataset/ulasan_shopee_preprocessed.xlsx")  # Pastikan path benar
 
-# # --- Load Data ---
-# X_raw = df['Ulasan_Clean']
-# y_sentimen = df['Sentimen']
+# --- Load Data ---
+X_raw = df['Ulasan_Clean']
+y_sentimen = df['Sentimen']
 
-# # Kalau ada kolom Aspek, misal Aspek Ulasan
-# if 'Aspek' in df.columns:
-#     y_aspek = df['Aspek']
-# else:
-#     y_aspek = None
+# Kalau ada kolom Aspek, misal Aspek Ulasan
+if 'Aspek' in df.columns:
+    y_aspek = df['Aspek']
+else:
+    y_aspek = None
 
-# # --- TF-IDF ---
-# vectorizer = TfidfVectorizer(max_features=5000)
-# X = vectorizer.fit_transform(X_raw)
+# --- TF-IDF ---
+vectorizer = TfidfVectorizer(max_features=5000)
+X = vectorizer.fit_transform(X_raw)
 
-# # --- Split ---
-# X_train, X_test, y_train_sentimen, y_test_sentimen = train_test_split(X, y_sentimen, test_size=0.2, random_state=42)
+# --- Split Data ---
+X_train, X_test, y_train_sentimen, y_test_sentimen = train_test_split(X, y_sentimen, test_size=0.2, random_state=42)
 
-# # --- Train Models ---
-# gbc_sentimen = GradientBoostingClassifier(random_state=42)
-# gbc_sentimen.fit(X_train, y_train_sentimen)
+# --- Train Models ---
+gbc_sentimen = GradientBoostingClassifier(random_state=42)
+gbc_sentimen.fit(X_train, y_train_sentimen)
 
-# catboost_sentimen = CatBoostClassifier(verbose=0, random_state=42)
-# catboost_sentimen.fit(X_train, y_train_sentimen)
+# CatBoost model
+catboost_sentimen = CatBoostClassifier(verbose=0, random_state=42)
+catboost_sentimen.fit(X_train, y_train_sentimen)
 
-# # Kalau mau aspek juga diprediksi, perlu training model aspek juga
-# if y_aspek is not None:
-#     y_train_aspek, y_test_aspek = train_test_split(y_aspek, test_size=0.2, random_state=42)
-#     gbc_aspek = GradientBoostingClassifier(random_state=42)
-#     gbc_aspek.fit(X_train, y_train_aspek)
-#     catboost_aspek = CatBoostClassifier(verbose=0, random_state=42)
-#     catboost_aspek.fit(X_train, y_train_aspek)
+# Kalau mau aspek juga diprediksi, perlu training model aspek juga
+if y_aspek is not None:
+    y_train_aspek, y_test_aspek = train_test_split(y_aspek, test_size=0.2, random_state=42)
+    gbc_aspek = GradientBoostingClassifier(random_state=42)
+    gbc_aspek.fit(X_train, y_train_aspek)
+    catboost_aspek = CatBoostClassifier(verbose=0, random_state=42)
+    catboost_aspek.fit(X_train, y_train_aspek)
 
 # --- Streamlit App ---
 
@@ -93,17 +94,14 @@ if predict_btn and input_text.strip() != "":
         final_aspek = pred_aspek_cat if pred_aspek_cat == pred_aspek_gbc else "Gabungan"
 
     # Tambahkan ke dataframe session
-    st.session_state.data_pred = pd.concat([
-        st.session_state.data_pred,
-        pd.DataFrame([{"Ulasan": input_text, "Aspek": final_aspek, "Sentimen": final_sentimen}])
-    ], ignore_index=True)
+    st.session_state.data_pred = pd.concat([st.session_state.data_pred, pd.DataFrame([{"Ulasan": input_text, "Aspek": final_aspek, "Sentimen": final_sentimen}])], ignore_index=True)
 
 # --- Display Result ---
 st.subheader("Hasil Prediksi")
 
 st.dataframe(st.session_state.data_pred)
 
-# --- Statistik ---
+# --- Statistik --- 
 st.subheader("Statistik Aspek")
 fig_aspek, ax_aspek = plt.subplots()
 st.session_state.data_pred["Aspek"].value_counts().plot(kind="bar", ax=ax_aspek, color="skyblue")
