@@ -57,6 +57,33 @@ st.dataframe(df.head(10))
 if st.button("Lihat Selengkapnya"):
     st.dataframe(df)
 
+# --- Statistik Sentimen (Data Asli) ---
+st.subheader("Statistik Sentimen (Data Asli)")
+
+fig_sentimen, ax_sentimen = plt.subplots()
+
+sentimen_counts = df["Sentimen"].value_counts()
+sentimen_counts.plot(kind="bar", ax=ax_sentimen, color="lightgreen")
+# Menambahkan angka di atas bar
+for i, v in enumerate(sentimen_counts):
+    ax_sentimen.text(i, v + 1, str(v), ha='center', va='bottom')
+st.pyplot(fig_sentimen)
+
+# --- Statistik Aspek (Prediksi) ---
+st.subheader("Statistik Aspek (Prediksi)")
+
+fig_aspek_pred, ax_aspek_pred = plt.subplots()
+
+if not st.session_state.data_pred.empty and "Aspek" in st.session_state.data_pred.columns:
+    aspect_pred_counts = st.session_state.data_pred["Aspek"].value_counts()
+    aspect_pred_counts.plot(kind="bar", ax=ax_aspek_pred, color="skyblue")
+    # Menambahkan angka di atas bar
+    for i, v in enumerate(aspect_pred_counts):
+        ax_aspek_pred.text(i, v + 1, str(v), ha='center', va='bottom')
+    st.pyplot(fig_aspek_pred)
+else:
+    st.write("Belum ada data aspek untuk ditampilkan.")
+
 # --- Input Ulasan Baru ---
 st.subheader("Input Ulasan Baru")
 
@@ -119,32 +146,17 @@ if 'Aspek' in df.columns:
 else:
     st.write("Data aspek tidak tersedia.")
 
-# --- Statistik Sentimen (Data Asli) ---
-st.subheader("Statistik Sentimen (Data Asli)")
-
-fig_sentimen, ax_sentimen = plt.subplots()
-
-df["Sentimen"].value_counts().plot(kind="bar", ax=ax_sentimen, color="lightgreen")
-st.pyplot(fig_sentimen)
-
-# --- Statistik Aspek (Prediksi) ---
-st.subheader("Statistik Aspek (Prediksi)")
-
-fig_aspek_pred, ax_aspek_pred = plt.subplots()
-
-if not st.session_state.data_pred.empty and "Aspek" in st.session_state.data_pred.columns:
-    st.session_state.data_pred["Aspek"].value_counts().plot(kind="bar", ax=ax_aspek_pred, color="skyblue")
-    st.pyplot(fig_aspek_pred)
-else:
-    st.write("Belum ada data aspek untuk ditampilkan.")
-
 # --- Statistik Sentimen (Prediksi) ---
 st.subheader("Statistik Sentimen (Prediksi)")
 
 fig_sentimen_pred, ax_sentimen_pred = plt.subplots()
 
 if not st.session_state.data_pred.empty and "Sentimen" in st.session_state.data_pred.columns:
-    st.session_state.data_pred["Sentimen"].value_counts().plot(kind="bar", ax=ax_sentimen_pred, color="lightgreen")
+    sentimen_pred_counts = st.session_state.data_pred["Sentimen"].value_counts()
+    sentimen_pred_counts.plot(kind="bar", ax=ax_sentimen_pred, color="lightgreen")
+    # Menambahkan angka di atas bar
+    for i, v in enumerate(sentimen_pred_counts):
+        ax_sentimen_pred.text(i, v + 1, str(v), ha='center', va='bottom')
     st.pyplot(fig_sentimen_pred)
 else:
     st.write("Belum ada data sentimen untuk ditampilkan.")
