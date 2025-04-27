@@ -90,6 +90,7 @@ if 'Aspek' in df.columns and 'Sentimen' in df.columns:
 else:
     st.write("Data aspek dan sentimen tidak tersedia.")
 
+
 # --- Input Ulasan Baru ---
 st.subheader("Input Ulasan Baru")
 
