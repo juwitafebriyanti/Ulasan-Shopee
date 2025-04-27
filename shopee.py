@@ -65,30 +65,42 @@ if st.button("Lihat Selengkapnya"):
     st.session_state.lihat_selengkapnya = True
 
 # --- Statistik Distribusi Sentimen per Aspek (Data Asli) ---
-st.subheader("Distribusi Sentimen per Aspek (Data Asli)")
+# --- Statistik Aspek dan Sentimen (Data Asli) ---
+st.subheader("Statistik Aspek dan Sentimen (Data Asli)")
 
-if 'Aspek' in df.columns:
-    fig, ax = plt.subplots(figsize=(10,6))
+fig_aspek_sentimen, ax_aspek_sentimen = plt.subplots(figsize=(12,6))
 
-    # Hitung jumlah untuk kombinasi Aspek & Sentimen
-    aspek_sentimen_counts = df.groupby(['Aspek', 'Sentimen']).size().unstack(fill_value=0)
+if 'Aspek' in df.columns and 'Sentimen' in df.columns:
+    count_data = df.groupby(['Aspek', 'Sentimen']).size().unstack(fill_value=0)
 
-    # Plot grouped bar chart
-    aspek_sentimen_counts.plot(kind='bar', ax=ax, width=0.8)
+    aspek = count_data.index.tolist()
+    sentimen = ['Positif', 'Netral', 'Negatif']
+    colors = ['#2ecc71', '#f39c12', '#9b59b6']  # hijau, oranye, ungu
 
-    ax.set_title('Distribusi Sentimen per Aspek')
-    ax.set_xlabel('Aspek')
-    ax.set_ylabel('Jumlah Ulasan')
-    ax.legend(title="Sentimen")
-    plt.xticks(rotation=45, ha='right')
+    x = np.arange(len(aspek))
+    width = 0.25
 
-    # Tambahkan angka di atas bar
-    for container in ax.containers:
-        ax.bar_label(container, fmt='%d', label_type='edge', padding=2)
+    for idx, s in enumerate(sentimen):
+        ax_aspek_sentimen.bar(x + idx*width, count_data[s], width, label=s, color=colors[idx])
 
-    st.pyplot(fig)
+        # Kasih label angka di atas bar
+        for i in range(len(aspek)):
+            ax_aspek_sentimen.text(x[i] + idx*width, count_data[s][i] + 1, str(count_data[s][i]),
+                                   ha='center', va='bottom', fontsize=8)
+
+    ax_aspek_sentimen.set_xlabel('Aspek')
+    ax_aspek_sentimen.set_ylabel('Jumlah Ulasan')
+    ax_aspek_sentimen.set_title('Distribusi Aspek dan Sentimen (Data Asli)')
+    ax_aspek_sentimen.set_xticks(x + width)
+    ax_aspek_sentimen.set_xticklabels(aspek, rotation=45, ha='right')
+    ax_aspek_sentimen.legend(title='Sentimen')
+    ax_aspek_sentimen.grid(axis='y', linestyle='--', alpha=0.7)
+
+    st.pyplot(fig_aspek_sentimen)
+
 else:
-    st.write("Data aspek tidak tersedia.")
+    st.write("Kolom Aspek atau Sentimen tidak ditemukan.")
+
 
     
 # --- Input Ulasan Baru ---
@@ -145,28 +157,39 @@ st.dataframe(st.session_state.data_pred)
 st.subheader("Statistik Aspek dan Sentimen (Prediksi)")
 
 # --- Statistik Distribusi Sentimen per Aspek (Prediksi) ---
-st.subheader("Distribusi Sentimen per Aspek (Prediksi)")
+# --- Statistik Aspek dan Sentimen (Prediksi) ---
+st.subheader("Statistik Aspek dan Sentimen (Prediksi)")
 
-if not st.session_state.data_pred.empty and "Aspek" in st.session_state.data_pred.columns:
-    fig_pred, ax_pred = plt.subplots(figsize=(10,6))
+fig_aspek_sentimen_pred, ax_aspek_sentimen_pred = plt.subplots(figsize=(12,6))
 
-    # Hitung jumlah untuk kombinasi Aspek & Sentimen
-    aspek_sentimen_pred_counts = st.session_state.data_pred.groupby(['Aspek', 'Sentimen']).size().unstack(fill_value=0)
+if not st.session_state.data_pred.empty and "Aspek" in st.session_state.data_pred.columns and "Sentimen" in st.session_state.data_pred.columns:
+    count_data_pred = st.session_state.data_pred.groupby(['Aspek', 'Sentimen']).size().unstack(fill_value=0)
 
-    # Plot grouped bar chart
-    aspek_sentimen_pred_counts.plot(kind='bar', ax=ax_pred, width=0.8)
+    aspek_pred = count_data_pred.index.tolist()
+    sentimen_pred = ['Positif', 'Netral', 'Negatif']
+    colors_pred = ['#2ecc71', '#f39c12', '#9b59b6']  # hijau, oranye, ungu
 
-    ax_pred.set_title('Distribusi Sentimen per Aspek (Prediksi)')
-    ax_pred.set_xlabel('Aspek')
-    ax_pred.set_ylabel('Jumlah Ulasan')
-    ax_pred.legend(title="Sentimen")
-    plt.xticks(rotation=45, ha='right')
+    x_pred = np.arange(len(aspek_pred))
+    width_pred = 0.25
 
-    # Tambahkan angka di atas bar
-    for container in ax_pred.containers:
-        ax_pred.bar_label(container, fmt='%d', label_type='edge', padding=2)
+    for idx, s in enumerate(sentimen_pred):
+        ax_aspek_sentimen_pred.bar(x_pred + idx*width_pred, count_data_pred.get(s, [0]*len(aspek_pred)), width_pred, label=s, color=colors_pred[idx])
 
-    st.pyplot(fig_pred)
+        # Kasih label angka di atas bar
+        for i in range(len(aspek_pred)):
+            ax_aspek_sentimen_pred.text(x_pred[i] + idx*width_pred, count_data_pred.get(s, [0]*len(aspek_pred))[i] + 0.5,
+                                        str(count_data_pred.get(s, [0]*len(aspek_pred))[i]),
+                                        ha='center', va='bottom', fontsize=8)
+
+    ax_aspek_sentimen_pred.set_xlabel('Aspek')
+    ax_aspek_sentimen_pred.set_ylabel('Jumlah Ulasan')
+    ax_aspek_sentimen_pred.set_title('Distribusi Aspek dan Sentimen (Prediksi)')
+    ax_aspek_sentimen_pred.set_xticks(x_pred + width_pred)
+    ax_aspek_sentimen_pred.set_xticklabels(aspek_pred, rotation=45, ha='right')
+    ax_aspek_sentimen_pred.legend(title='Sentimen')
+    ax_aspek_sentimen_pred.grid(axis='y', linestyle='--', alpha=0.7)
+
+    st.pyplot(fig_aspek_sentimen_pred)
+
 else:
-    st.write("Belum ada data aspek untuk ditampilkan.")
-
+    st.write("Belum ada data aspek dan sentimen untuk ditampilkan.")
