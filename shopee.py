@@ -1,92 +1,115 @@
 import streamlit as st
 import pandas as pd
-from joblib import load
-import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.preprocessing import LabelEncoder
+import matplotlib.pyplot as plt
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+from catboost import CatBoostClassifier
+import numpy as np
 
-# Judul Aplikasi
-st.title('Analisis Kepuasan Pengguna Shopee')
+# --- Load Dataset ---
+df = pd.read_excel("Dataset/ulasan_shopee_preprocessed.xlsx")  # Pastikan path benar
 
-st.write("""
-    Aplikasi ini menganalisis kepuasan pengguna terhadap platform Shopee di Indonesia
-    menggunakan Multi-Aspect Sentiment Analysis dan Machine Learning (GBC dan CatBoost).
-""")
+# --- Load Data ---
+X_raw = df['Ulasan_Clean']
+y_sentimen = df['Sentimen']
 
-# Memuat Model GBC dan CatBoost
-try:
-    gbc_model = load('model_gbc.pkl')  # Model GBC untuk klasifikasi sentimen
-    catboost_model = load('model_catboost.pkl')  # Model CatBoost untuk klasifikasi aspek
-    le = load('label_encoder.pkl')  # Label Encoder untuk konversi label ke angka
-except Exception as e:
-    st.error(f"Terjadi kesalahan saat memuat model: {e}")
+# Kalau ada kolom Aspek, misal Aspek Ulasan
+if 'Aspek' in df.columns:
+    y_aspek = df['Aspek']
+else:
+    y_aspek = None
 
-# Fungsi untuk klasifikasi sentimen
-def classify_sentiment(text):
-    # Menggunakan model GBC untuk analisis sentimen
-    sentiment = gbc_model.predict([text])
-    return sentiment[0]
+# --- TF-IDF ---
+vectorizer = TfidfVectorizer(max_features=5000)
+X = vectorizer.fit_transform(X_raw)
 
-# Fungsi untuk klasifikasi aspek
-def classify_aspect(text):
-    # Menggunakan model CatBoost untuk klasifikasi aspek
-    aspect = catboost_model.predict([text])
-    return aspect[0]
+# --- Split ---
+X_train, X_test, y_train_sentimen, y_test_sentimen = train_test_split(X, y_sentimen, test_size=0.2, random_state=42)
 
-# Mengunggah file CSV yang berisi ulasan pengguna
-file_path = st.file_uploader("Unggah File CSV dengan Ulasan Pengguna Shopee", type=["csv"])
+# --- Train Models ---
+gbc_sentimen = GradientBoostingClassifier(random_state=42)
+gbc_sentimen.fit(X_train, y_train_sentimen)
 
-if file_path is not None:
-    try:
-        df = pd.read_csv(file_path)
-        
-        if 'Review' in df.columns:
-            # Analisis Sentimen dan Aspek
-            df['Sentiment'] = df['Review'].apply(classify_sentiment)
-            df['Aspect'] = df['Review'].apply(classify_aspect)
+catboost_sentimen = CatBoostClassifier(verbose=0, random_state=42)
+catboost_sentimen.fit(X_train, y_train_sentimen)
 
-            # Menampilkan DataFrame yang telah dianalisis
-            st.subheader('Hasil Analisis')
-            st.dataframe(df[['Review', 'Sentiment', 'Aspect']])
+# Kalau mau aspek juga diprediksi, perlu training model aspek juga
+if y_aspek is not None:
+    y_train_aspek, y_test_aspek = train_test_split(y_aspek, test_size=0.2, random_state=42)
+    gbc_aspek = GradientBoostingClassifier(random_state=42)
+    gbc_aspek.fit(X_train, y_train_aspek)
+    catboost_aspek = CatBoostClassifier(verbose=0, random_state=42)
+    catboost_aspek.fit(X_train, y_train_aspek)
 
-            # Visualisasi Sentimen
-            sentiment_counts = df['Sentiment'].value_counts()
-            st.subheader('Distribusi Sentimen')
-            plt.figure(figsize=(6, 4))
-            sns.barplot(x=sentiment_counts.index, y=sentiment_counts.values, palette='viridis')
-            plt.xlabel('Sentimen')
-            plt.ylabel('Jumlah Ulasan')
-            st.pyplot()
+# --- Streamlit App ---
 
-            # Visualisasi Aspek
-            aspect_counts = df['Aspect'].value_counts()
-            st.subheader('Distribusi Aspek')
-            plt.figure(figsize=(6, 4))
-            sns.barplot(x=aspect_counts.index, y=aspect_counts.values, palette='coolwarm')
-            plt.xlabel('Aspek')
-            plt.ylabel('Jumlah Ulasan')
-            st.pyplot()
+st.title("Analisis Kepuasan Pengguna Shopee 🛒")
+st.write("Prediksi Aspek dan Sentimen Ulasan Shopee")
 
-            # Tampilkan Pie Chart untuk Sentimen
-            st.subheader('Pie Chart Sentimen')
-            sentiment_counts.plot.pie(autopct='%1.1f%%', startangle=90, cmap='viridis', figsize=(6, 6))
-            st.pyplot()
+# Input
+st.subheader("Input Ulasan Baru")
 
-            # Tampilkan Pie Chart untuk Aspek
-            st.subheader('Pie Chart Aspek')
-            aspect_counts.plot.pie(autopct='%1.1f%%', startangle=90, cmap='coolwarm', figsize=(6, 6))
-            st.pyplot()
+input_text = st.text_area("Masukkan Ulasan", "")
+selected_model = st.selectbox(
+    "Pilih Model",
+    ("CatBoost", "GradientBoosting", "Gabungan (Voting)")
+)
 
-            # Mengunduh Data yang sudah dianalisis
-            csv = df.to_csv(index=False)
-            st.download_button(
-                label="Download Data Hasil Analisis",
-                data=csv,
-                file_name='analisis_shopee.csv',
-                mime='text/csv'
-            )
-        else:
-            st.error("Kolom 'Review' tidak ditemukan di dataset.")
-    
-    except Exception as e:
-        st.error(f"Terjadi kesalahan saat membaca file: {e}")
+predict_btn = st.button("Prediksi")
+
+# Simpan ulasan + prediksi
+if "data_pred" not in st.session_state:
+    st.session_state.data_pred = pd.DataFrame(columns=["Ulasan", "Aspek", "Sentimen"])
+
+# Kalau klik prediksi
+if predict_btn and input_text.strip() != "":
+    # Preprocess input
+    input_vec = vectorizer.transform([input_text])
+
+    # Sentimen
+    pred_sentimen_cat = catboost_sentimen.predict(input_vec)[0]
+    pred_sentimen_gbc = gbc_sentimen.predict(input_vec)[0]
+
+    # Aspek (jika ada)
+    if y_aspek is not None:
+        pred_aspek_cat = catboost_aspek.predict(input_vec)[0]
+        pred_aspek_gbc = gbc_aspek.predict(input_vec)[0]
+    else:
+        pred_aspek_cat = "Unknown"
+        pred_aspek_gbc = "Unknown"
+
+    # Gabungan Voting
+    if selected_model == "CatBoost":
+        final_sentimen = pred_sentimen_cat
+        final_aspek = pred_aspek_cat
+    elif selected_model == "GradientBoosting":
+        final_sentimen = pred_sentimen_gbc
+        final_aspek = pred_aspek_gbc
+    else:  # Voting
+        final_sentimen = pred_sentimen_cat if pred_sentimen_cat == pred_sentimen_gbc else "Netral"
+        final_aspek = pred_aspek_cat if pred_aspek_cat == pred_aspek_gbc else "Gabungan"
+
+    # Tambahkan ke dataframe session
+    st.session_state.data_pred = pd.concat([
+        st.session_state.data_pred,
+        pd.DataFrame([{"Ulasan": input_text, "Aspek": final_aspek, "Sentimen": final_sentimen}])
+    ], ignore_index=True)
+
+# --- Display Result ---
+st.subheader("Hasil Prediksi")
+
+st.dataframe(st.session_state.data_pred)
+
+# --- Statistik ---
+st.subheader("Statistik Aspek")
+fig_aspek, ax_aspek = plt.subplots()
+st.session_state.data_pred["Aspek"].value_counts().plot(kind="bar", ax=ax_aspek, color="skyblue")
+st.pyplot(fig_aspek)
+
+st.subheader("Statistik Sentimen")
+fig_sentimen, ax_sentimen = plt.subplots()
+st.session_state.data_pred["Sentimen"].value_counts().plot(kind="bar", ax=ax_sentimen, color="lightgreen")
+st.pyplot(fig_sentimen)
