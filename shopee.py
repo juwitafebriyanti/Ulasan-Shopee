@@ -1,11 +1,9 @@
 import streamlit as st
 import pandas as pd
-import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import GradientBoostingClassifier
-from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 from catboost import CatBoostClassifier
 import numpy as np
 
@@ -26,13 +24,14 @@ else:
 vectorizer = TfidfVectorizer(max_features=5000)
 X = vectorizer.fit_transform(X_raw)
 
-# --- Split ---
+# --- Split Data ---
 X_train, X_test, y_train_sentimen, y_test_sentimen = train_test_split(X, y_sentimen, test_size=0.2, random_state=42)
 
 # --- Train Models ---
 gbc_sentimen = GradientBoostingClassifier(random_state=42)
 gbc_sentimen.fit(X_train, y_train_sentimen)
 
+# CatBoost model
 catboost_sentimen = CatBoostClassifier(verbose=0, random_state=42)
 catboost_sentimen.fit(X_train, y_train_sentimen)
 
@@ -45,11 +44,54 @@ if y_aspek is not None:
     catboost_aspek.fit(X_train, y_train_aspek)
 
 # --- Streamlit App ---
-
 st.title("Analisis Kepuasan Pengguna Shopee 🛒")
 st.write("Prediksi Aspek dan Sentimen Ulasan Shopee")
 
-# Input
+# --- Display Data Ulasan ---
+st.subheader("Data Ulasan Shopee")
+# Menampilkan 10 data pertama
+if 'lihat_selengkapnya' not in st.session_state:
+    st.session_state.lihat_selengkapnya = False
+
+if st.session_state.lihat_selengkapnya:
+    # Menampilkan seluruh data jika tombol sudah diklik
+    st.dataframe(df)
+else:
+    # Menampilkan hanya 10 data pertama
+    st.dataframe(df.head(10))
+
+# Tombol untuk melihat data selengkapnya
+if st.button("Lihat Selengkapnya"):
+    st.session_state.lihat_selengkapnya = True
+
+# --- Statistik Aspek (Data Asli) ---
+st.subheader("Statistik Aspek (Data Asli)")
+
+fig_aspek, ax_aspek = plt.subplots()
+
+if 'Aspek' in df.columns:
+    aspect_counts = df["Aspek"].value_counts()
+    aspect_counts.plot(kind="bar", ax=ax_aspek, color="skyblue")
+    # Menambahkan angka di atas bar
+    for i, v in enumerate(aspect_counts):
+        ax_aspek.text(i, v + 1, str(v), ha='center', va='bottom')
+    st.pyplot(fig_aspek)
+else:
+    st.write("Data aspek tidak tersedia.")
+
+# --- Statistik Sentimen (Data Asli) ---
+st.subheader("Statistik Sentimen (Data Asli)")
+
+fig_sentimen, ax_sentimen = plt.subplots()
+
+sentimen_counts = df["Sentimen"].value_counts()
+sentimen_counts.plot(kind="bar", ax=ax_sentimen, color="lightgreen")
+# Menambahkan angka di atas bar
+for i, v in enumerate(sentimen_counts):
+    ax_sentimen.text(i, v + 1, str(v), ha='center', va='bottom')
+st.pyplot(fig_sentimen)
+    
+# --- Input Ulasan Baru ---
 st.subheader("Input Ulasan Baru")
 
 input_text = st.text_area("Masukkan Ulasan", "")
@@ -93,37 +135,41 @@ if predict_btn and input_text.strip() != "":
         final_aspek = pred_aspek_cat if pred_aspek_cat == pred_aspek_gbc else "Gabungan"
 
     # Tambahkan ke dataframe session
-    st.session_state.data_pred = pd.concat([
-        st.session_state.data_pred,
-        pd.DataFrame([{"Ulasan": input_text, "Aspek": final_aspek, "Sentimen": final_sentimen}])
-    ], ignore_index=True)
+    st.session_state.data_pred = pd.concat([st.session_state.data_pred, pd.DataFrame([{"Ulasan": input_text, "Aspek": final_aspek, "Sentimen": final_sentimen}])], ignore_index=True)
 
 # --- Display Result ---
 st.subheader("Hasil Prediksi")
 
 st.dataframe(st.session_state.data_pred)
 
-# --- Statistik ---
-st.subheader("Statistik Aspek")
-fig_aspek, ax_aspek = plt.subplots()
+st.subheader("Statistik Aspek dan Sentimen (Prediksi)")
+
+# --- Statistik Aspek (Prediksi) ---
+st.subheader("Statistik Aspek (Prediksi)")
+
+fig_aspek_pred, ax_aspek_pred = plt.subplots()
 
 if not st.session_state.data_pred.empty and "Aspek" in st.session_state.data_pred.columns:
-    if not st.session_state.data_pred["Aspek"].dropna().empty:
-        st.session_state.data_pred["Aspek"].value_counts().plot(kind="bar", ax=ax_aspek, color="skyblue")
-        st.pyplot(fig_aspek)
-    else:
-        st.write("Belum ada data aspek untuk ditampilkan.")
+    aspect_pred_counts = st.session_state.data_pred["Aspek"].value_counts()
+    aspect_pred_counts.plot(kind="bar", ax=ax_aspek_pred, color="skyblue")
+    # Menambahkan angka di atas bar
+    for i, v in enumerate(aspect_pred_counts):
+        ax_aspek_pred.text(i, v + 1, str(v), ha='center', va='bottom')
+    st.pyplot(fig_aspek_pred)
 else:
     st.write("Belum ada data aspek untuk ditampilkan.")
 
-st.subheader("Statistik Sentimen")
-fig_sentimen, ax_sentimen = plt.subplots()
+# --- Statistik Sentimen (Prediksi) ---
+st.subheader("Statistik Sentimen (Prediksi)")
+
+fig_sentimen_pred, ax_sentimen_pred = plt.subplots()
 
 if not st.session_state.data_pred.empty and "Sentimen" in st.session_state.data_pred.columns:
-    if not st.session_state.data_pred["Sentimen"].dropna().empty:
-        st.session_state.data_pred["Sentimen"].value_counts().plot(kind="bar", ax=ax_sentimen, color="lightgreen")
-        st.pyplot(fig_sentimen)
-    else:
-        st.write("Belum ada data sentimen untuk ditampilkan.")
+    sentimen_pred_counts = st.session_state.data_pred["Sentimen"].value_counts()
+    sentimen_pred_counts.plot(kind="bar", ax=ax_sentimen_pred, color="lightgreen")
+    # Menambahkan angka di atas bar
+    for i, v in enumerate(sentimen_pred_counts):
+        ax_sentimen_pred.text(i, v + 1, str(v), ha='center', va='bottom')
+    st.pyplot(fig_sentimen_pred)
 else:
     st.write("Belum ada data sentimen untuk ditampilkan.")
