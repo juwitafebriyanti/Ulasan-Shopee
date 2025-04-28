@@ -59,7 +59,7 @@ else:
     show_df = df_display.head(10)
 
 # Tampilkan tabel tanpa index dan dengan style wrapping teks
-st.data_editor(
+st.dataframe(
     df_display,
     hide_index=True,
     column_config={
@@ -173,7 +173,7 @@ st.subheader("Hasil Prediksi per Model")
 for model_name, df_model in st.session_state.data_pred_per_model.items():
     st.write(f"### {model_name}")
     if not df_model.empty:
-        st.data_editor(
+        st.dataframe(
         df_model,
             hide_index=True,
             use_container_width=True,
