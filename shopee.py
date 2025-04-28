@@ -30,24 +30,22 @@ gbc_sentimen = GradientBoostingClassifier(random_state=42)
 gbc_sentimen.fit(X_train, y_train_sentimen)
 
 catboost_sentimen = CatBoostClassifier(verbose=0, random_state=42)
-catboost_sentimen.fit(X_train, y_train_sentimen)
+catboost_sentimen.fit(X_train.toarray(), y_train_sentimen)  # <--- FIX disini
 
 if y_aspek is not None:
-    y_train_aspek, y_test_aspek = train_test_split(y_aspek, test_size=0.2, random_state=42)
+    X_train_aspek, X_test_aspek, y_train_aspek, y_test_aspek = train_test_split(X, y_aspek, test_size=0.2, random_state=42)
     gbc_aspek = GradientBoostingClassifier(random_state=42)
-    gbc_aspek.fit(X_train, y_train_aspek)
+    gbc_aspek.fit(X_train_aspek, y_train_aspek)
     catboost_aspek = CatBoostClassifier(verbose=0, random_state=42)
-    catboost_aspek.fit(X_train, y_train_aspek)
+    catboost_aspek.fit(X_train_aspek.toarray(), y_train_aspek)  # <--- FIX disini
 
 # --- Streamlit App ---
-# Bikin title di tengah
 st.markdown("<h1 style='text-align: center;'>Analisis Kepuasan Pengguna Shopee 🛒</h1>", unsafe_allow_html=True)
 st.write("Prediksi Aspek dan Sentimen Ulasan Shopee")
 
 # --- Display Data Ulasan ---
 st.subheader("Data Ulasan Shopee")
 
-# Hanya tampilkan kolom Ulasan_Clean, Aspek, Sentimen
 df_display = df[['Ulasan_Clean', 'Aspek', 'Sentimen']]
 
 if 'lihat_selengkapnya' not in st.session_state:
@@ -58,14 +56,13 @@ if st.session_state.lihat_selengkapnya:
 else:
     show_df = df_display.head(10)
 
-# Tampilkan tabel tanpa index dan dengan style wrapping teks
 st.dataframe(
     show_df.style.set_properties(**{
-        'white-space': 'pre-wrap',        # Biar teks panjang turun ke bawah
-        'word-wrap': 'break-word'          # Biar kata dipotong kalo kepanjangan
+        'white-space': 'pre-wrap',
+        'word-wrap': 'break-word'
     }),
-    hide_index=True,                      # Sembunyikan index angka
-    use_container_width=True              # Biar tabel penuh lebarnya
+    hide_index=True,
+    use_container_width=True
 )
 
 if st.button("Lihat Selengkapnya"):
@@ -123,36 +120,37 @@ if st.session_state.input_text_saved != "":
         }
 
     if predict_btn:
-        input_vec = vectorizer.transform([st.session_state.input_text_saved])
+        with st.spinner("Sedang memproses prediksi..."):
+            input_vec = vectorizer.transform([st.session_state.input_text_saved])
 
-        pred_sentimen_cat = catboost_sentimen.predict(input_vec)[0]
-        pred_sentimen_gbc = gbc_sentimen.predict(input_vec)[0]
+            pred_sentimen_cat = catboost_sentimen.predict(input_vec.toarray())[0]  # <--- FIX disini
+            pred_sentimen_gbc = gbc_sentimen.predict(input_vec)[0]
 
-        if y_aspek is not None:
-            pred_aspek_cat = catboost_aspek.predict(input_vec)[0]
-            pred_aspek_gbc = gbc_aspek.predict(input_vec)[0]
-        else:
-            pred_aspek_cat = "Unknown"
-            pred_aspek_gbc = "Unknown"
+            if y_aspek is not None:
+                pred_aspek_cat = catboost_aspek.predict(input_vec.toarray())[0]  # <--- FIX disini
+                pred_aspek_gbc = gbc_aspek.predict(input_vec)[0]
+            else:
+                pred_aspek_cat = "Unknown"
+                pred_aspek_gbc = "Unknown"
 
-        if selected_model == "CatBoost":
-            final_sentimen = pred_sentimen_cat
-            final_aspek = pred_aspek_cat
-        elif selected_model == "GradientBoosting":
-            final_sentimen = pred_sentimen_gbc
-            final_aspek = pred_aspek_gbc
-        else:
-            final_sentimen = pred_sentimen_cat if pred_sentimen_cat == pred_sentimen_gbc else "Netral"
-            final_aspek = pred_aspek_cat if pred_aspek_cat == pred_aspek_gbc else "Gabungan"
+            if selected_model == "CatBoost":
+                final_sentimen = pred_sentimen_cat
+                final_aspek = pred_aspek_cat
+            elif selected_model == "GradientBoosting":
+                final_sentimen = pred_sentimen_gbc
+                final_aspek = pred_aspek_gbc
+            else:
+                final_sentimen = pred_sentimen_cat if pred_sentimen_cat == pred_sentimen_gbc else "Netral"
+                final_aspek = pred_aspek_cat if pred_aspek_cat == pred_aspek_gbc else "Gabungan"
 
-        st.session_state.data_pred_per_model[selected_model] = pd.concat([
-            st.session_state.data_pred_per_model[selected_model],
-            pd.DataFrame([{
-                "Ulasan": st.session_state.input_text_saved,
-                "Aspek": final_aspek,
-                "Sentimen": final_sentimen
-            }])
-        ], ignore_index=True)
+            st.session_state.data_pred_per_model[selected_model] = pd.concat([
+                st.session_state.data_pred_per_model[selected_model],
+                pd.DataFrame([{
+                    "Ulasan": st.session_state.input_text_saved,
+                    "Aspek": final_aspek,
+                    "Sentimen": final_sentimen
+                }])
+            ], ignore_index=True)
 
 if "data_pred_per_model" not in st.session_state:
     st.session_state.data_pred_per_model = {
