@@ -177,4 +177,3 @@ for model_name, df_model in st.session_state.data_pred_per_model.items():
         )
     else:
         st.write("Belum ada prediksi untuk model ini.")
-
