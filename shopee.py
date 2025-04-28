@@ -59,13 +59,19 @@ else:
     show_df = df_display.head(10)
 
 # Tampilkan tabel tanpa index dan dengan style wrapping teks
-st.dataframe(
-    show_df.style.set_properties(**{
-        'white-space': 'pre-wrap',        # Biar teks panjang turun ke bawah
-        'word-wrap': 'break-word'          # Biar kata dipotong kalo kepanjangan
-    }),
-    hide_index=True,                      # Sembunyikan index angka
-    use_container_width=True              # Biar tabel penuh lebarnya
+st.data_editor(
+    df_display,
+    hide_index=True,
+    column_config={
+        "Ulasan_Clean": st.column_config.TextColumn(width="large"),
+        "Aspek": st.column_config.TextColumn(width="medium"),
+        "Sentimen": st.column_config.TextColumn(width="small"),
+    },
+    use_container_width=True,
+    disabled=True,
+    key="data_editor_display",
+    height=500, # optional kalo mau kasih tinggi
+    wrap_text=True, # INI yang penting!
 )
 
 if st.button("Lihat Selengkapnya"):
@@ -167,13 +173,14 @@ st.subheader("Hasil Prediksi per Model")
 for model_name, df_model in st.session_state.data_pred_per_model.items():
     st.write(f"### {model_name}")
     if not df_model.empty:
-        st.dataframe(
-            df_model.style.set_properties(**{
-                'white-space': 'pre-wrap',
-                'word-wrap': 'break-word'
-            }),
+        st.data_editor(
+        df_model,
             hide_index=True,
-            use_container_width=True
+            use_container_width=True,
+            disabled=True,
+            key=f"data_editor_{model_name}",
+            wrap_text=True
         )
+
     else:
         st.write("Belum ada prediksi untuk model ini.")
