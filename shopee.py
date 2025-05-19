@@ -87,7 +87,7 @@ def train_models(_X, y_sentimen, y_aspek=None):
 gbc_sentimen, catboost_sentimen, gbc_aspek, catboost_aspek = train_models(X_train, y_train_sentimen, y_train_aspek)
 
 # --- Streamlit App ---
-st.markdown("<h1 style='text-align: center;'>Analisis Kepuasan Pengguna Shopee \ud83d\uded2</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center;'>Analisis Kepuasan Pengguna Shopee</h1>", unsafe_allow_html=True)
 st.write("Prediksi Aspek dan Sentimen Ulasan Shopee")
 
 # --- Display Data Ulasan ---
