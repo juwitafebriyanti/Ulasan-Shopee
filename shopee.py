@@ -6,10 +6,44 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import GradientBoostingClassifier
 from catboost import CatBoostClassifier
 
-# --- Load Dataset ---
-df = pd.read_excel("Dataset/ulasan_shopee_preprocessed.xlsx")  # Pastikan path benar
+# --- Keyword Aspek ---
+aspect_keywords = {
+    "harga": ['murah', 'mahal', 'ongkir', 'diskon', 'promo', 'cashback'],
+    "pelayanan": ['cs', 'customer service', 'komplain', 'balasan', 'pengaduan', 'pelayanan'],
+    "aplikasi": ['error', 'lemot', 'fitur', 'update', 'login', 'sistem', 'bug'],
+}
 
-# --- Load Data ---
+# --- Keyword Sentimen ---
+kata_positif = ['bagus', 'puas', 'mantap', 'baik', 'cepat', 'murah', 'ramah', 'oke', 'senang']
+kata_negatif = ['buruk', 'lambat', 'jelek', 'tidak puas', 'parah', 'mahal', 'kecewa', 'lemot', 'error']
+
+# --- Fungsi Rule-Based ---
+def detect_aspects_rule_based(text):
+    aspects_found = set()
+    text_lower = text.lower()
+    for aspect, keywords in aspect_keywords.items():
+        for kw in keywords:
+            if kw in text_lower:
+                aspects_found.add(aspect)
+                break
+    return list(aspects_found) if aspects_found else ["Unknown"]
+
+def detect_sentiment_rule_based(text):
+    text_lower = text.lower()
+    positif = any(kw in text_lower for kw in kata_positif)
+    negatif = any(kw in text_lower for kw in kata_negatif)
+
+    if positif and not negatif:
+        return "Positif"
+    elif negatif and not positif:
+        return "Negatif"
+    elif positif and negatif:
+        return "Netral"
+    else:
+        return "Netral"
+
+# --- Load Dataset ---
+df = pd.read_excel("Dataset/ulasan_shopee_preprocessed.xlsx")
 X_raw = df['Ulasan_Clean']
 y_sentimen = df['Sentimen']
 
@@ -30,7 +64,7 @@ if y_aspek is not None:
 else:
     y_train_aspek = y_test_aspek = None
 
-# --- Train Models (pakai underscore _X supaya Streamlit gak error cache) ---
+# --- Train Models ---
 @st.cache_resource
 def train_models(_X, y_sentimen, y_aspek=None):
     gbc_sentimen = GradientBoostingClassifier(random_state=42)
@@ -53,13 +87,11 @@ def train_models(_X, y_sentimen, y_aspek=None):
 gbc_sentimen, catboost_sentimen, gbc_aspek, catboost_aspek = train_models(X_train, y_train_sentimen, y_train_aspek)
 
 # --- Streamlit App ---
-
-st.markdown("<h1 style='text-align: center;'>Analisis Kepuasan Pengguna Shopee 🛒</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center;'>Analisis Kepuasan Pengguna Shopee \ud83d\uded2</h1>", unsafe_allow_html=True)
 st.write("Prediksi Aspek dan Sentimen Ulasan Shopee")
 
 # --- Display Data Ulasan ---
 st.subheader("Data Ulasan Shopee")
-
 df_display = df[['Ulasan_Clean', 'Aspek', 'Sentimen']] if 'Aspek' in df.columns else df[['Ulasan_Clean', 'Sentimen']]
 
 if 'lihat_selengkapnya' not in st.session_state:
@@ -70,14 +102,7 @@ if st.session_state.lihat_selengkapnya:
 else:
     show_df = df_display.head(10)
 
-st.dataframe(
-    show_df.style.set_properties(**{
-        'white-space': 'pre-wrap',
-        'word-wrap': 'break-word'
-    }),
-    hide_index=True,
-    use_container_width=True
-)
+st.dataframe(show_df.style.set_properties(**{'white-space': 'pre-wrap','word-wrap': 'break-word'}), hide_index=True, use_container_width=True)
 
 if st.button("Lihat Selengkapnya"):
     st.session_state.lihat_selengkapnya = True
@@ -119,10 +144,7 @@ if st.button("Simpan Ulasan"):
 if st.session_state.input_text_saved != "":
     st.success(f"Ulasan disimpan: {st.session_state.input_text_saved}")
 
-    selected_model = st.selectbox(
-        "Pilih Model untuk Prediksi",
-        ("CatBoost", "GradientBoosting", "Gabungan (Voting)")
-    )
+    selected_model = st.selectbox("Pilih Model untuk Prediksi", ("CatBoost", "GradientBoosting", "Gabungan (Voting)"))
 
     predict_btn = st.button("Prediksi dengan Model Terpilih")
 
@@ -144,24 +166,33 @@ if st.session_state.input_text_saved != "":
                 pred_aspek_cat = catboost_aspek.predict(input_vec.toarray())[0]
                 pred_aspek_gbc = gbc_aspek.predict(input_vec)[0]
             else:
-                pred_aspek_cat = "Unknown"
-                pred_aspek_gbc = "Unknown"
+                pred_aspek_cat = pred_aspek_gbc = "Unknown"
+
+            aspects_by_keyword = detect_aspects_rule_based(st.session_state.input_text_saved)
+            sentiment_by_keyword = detect_sentiment_rule_based(st.session_state.input_text_saved)
 
             if selected_model == "CatBoost":
-                final_sentimen = pred_sentimen_cat
-                final_aspek = pred_aspek_cat
+                final_sentimen = sentiment_by_keyword if sentiment_by_keyword != "Netral" else pred_sentimen_cat
+                final_aspek = aspects_by_keyword if aspects_by_keyword != ["Unknown"] else [pred_aspek_cat]
             elif selected_model == "GradientBoosting":
-                final_sentimen = pred_sentimen_gbc
-                final_aspek = pred_aspek_gbc
+                final_sentimen = sentiment_by_keyword if sentiment_by_keyword != "Netral" else pred_sentimen_gbc
+                final_aspek = aspects_by_keyword if aspects_by_keyword != ["Unknown"] else [pred_aspek_gbc]
             else:
-                final_sentimen = pred_sentimen_cat if pred_sentimen_cat == pred_sentimen_gbc else "Netral"
-                final_aspek = pred_aspek_cat if pred_aspek_cat == pred_aspek_gbc else "Gabungan"
+                model_sentimen_vote = pred_sentimen_cat if pred_sentimen_cat == pred_sentimen_gbc else "Netral"
+                final_sentimen = sentiment_by_keyword if sentiment_by_keyword != "Netral" else model_sentimen_vote
+
+                if aspects_by_keyword != ["Unknown"]:
+                    final_aspek = aspects_by_keyword
+                elif pred_aspek_cat == pred_aspek_gbc:
+                    final_aspek = [pred_aspek_cat]
+                else:
+                    final_aspek = ["Gabungan"]
 
             st.session_state.data_pred_per_model[selected_model] = pd.concat([
                 st.session_state.data_pred_per_model[selected_model],
                 pd.DataFrame([{
                     "Ulasan": st.session_state.input_text_saved,
-                    "Aspek": final_aspek,
+                    "Aspek": ", ".join(final_aspek),
                     "Sentimen": final_sentimen
                 }])
             ], ignore_index=True)
@@ -179,13 +210,9 @@ if "data_pred_per_model" not in st.session_state:
 for model_name, df_model in st.session_state.data_pred_per_model.items():
     st.write(f"### {model_name}")
     if not df_model.empty:
-        st.dataframe(
-            df_model.style.set_properties(**{
-                'white-space': 'pre-wrap',
-                'word-wrap': 'break-word'
-            }),
-            hide_index=True,
-            use_container_width=True
-        )
+        st.dataframe(df_model.style.set_properties(**{
+            'white-space': 'pre-wrap',
+            'word-wrap': 'break-word'
+        }), hide_index=True, use_container_width=True)
     else:
         st.write("Belum ada prediksi untuk model ini.")
