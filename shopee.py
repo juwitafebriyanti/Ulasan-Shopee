@@ -207,12 +207,31 @@ if "data_pred_per_model" not in st.session_state:
         "Gabungan (Voting)": pd.DataFrame(columns=["Ulasan", "Aspek", "Sentimen"]),
     }
 
+# for model_name, df_model in st.session_state.data_pred_per_model.items():
+#     st.write(f"### {model_name}")
+#     if not df_model.empty:
+#         st.dataframe(df_model.style.set_properties(**{
+#             'white-space': 'pre-wrap',
+#             'word-wrap': 'break-word'
+#         }), hide_index=True, use_container_width=True)
+#     else:
+#         st.write("Belum ada prediksi untuk model ini.")
+
 for model_name, df_model in st.session_state.data_pred_per_model.items():
     st.write(f"### {model_name}")
     if not df_model.empty:
-        st.dataframe(df_model.style.set_properties(**{
-            'white-space': 'pre-wrap',
-            'word-wrap': 'break-word'
-        }), hide_index=True, use_container_width=True)
+        st.dataframe(
+            df_model.style.set_table_styles([{
+                'selector': 'td.col0',
+                'props': [
+                    ('max-width', '300px'),
+                    ('white-space', 'pre-wrap'),
+                    ('word-wrap', 'break-word')
+                ]
+            }]),
+            hide_index=True,
+            use_container_width=True
+        )
     else:
         st.write("Belum ada prediksi untuk model ini.")
+
