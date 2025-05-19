@@ -150,8 +150,8 @@ if st.session_state.input_text_saved != "":
 
     if "data_pred_per_model" not in st.session_state:
         st.session_state.data_pred_per_model = {
-            "CatBoost": pd.DataFrame(columns=["Ulasan", "Aspek", "Sentimen"]),
             "GradientBoosting": pd.DataFrame(columns=["Ulasan", "Aspek", "Sentimen"]),
+            "CatBoost": pd.DataFrame(columns=["Ulasan", "Aspek", "Sentimen"]),
             "Gabungan (Voting)": pd.DataFrame(columns=["Ulasan", "Aspek", "Sentimen"]),
         }
 
@@ -202,8 +202,8 @@ st.subheader("Hasil Prediksi per Model")
 
 if "data_pred_per_model" not in st.session_state:
     st.session_state.data_pred_per_model = {
-        "CatBoost": pd.DataFrame(columns=["Ulasan", "Aspek", "Sentimen"]),
         "GradientBoosting": pd.DataFrame(columns=["Ulasan", "Aspek", "Sentimen"]),
+        "CatBoost": pd.DataFrame(columns=["Ulasan", "Aspek", "Sentimen"]),
         "Gabungan (Voting)": pd.DataFrame(columns=["Ulasan", "Aspek", "Sentimen"]),
     }
 
