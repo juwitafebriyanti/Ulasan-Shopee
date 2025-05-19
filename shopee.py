@@ -25,28 +25,42 @@ X = vectorizer.fit_transform(X_raw)
 # --- Split Data ---
 X_train, X_test, y_train_sentimen, y_test_sentimen = train_test_split(X, y_sentimen, test_size=0.2, random_state=42)
 
-# --- Train Models ---
-gbc_sentimen = GradientBoostingClassifier(random_state=42)
-gbc_sentimen.fit(X_train, y_train_sentimen)
-
-catboost_sentimen = CatBoostClassifier(verbose=0, random_state=42)
-catboost_sentimen.fit(X_train.toarray(), y_train_sentimen)  # <--- FIX disini
-
 if y_aspek is not None:
-    X_train_aspek, X_test_aspek, y_train_aspek, y_test_aspek = train_test_split(X, y_aspek, test_size=0.2, random_state=42)
-    gbc_aspek = GradientBoostingClassifier(random_state=42)
-    gbc_aspek.fit(X_train_aspek, y_train_aspek)
-    catboost_aspek = CatBoostClassifier(verbose=0, random_state=42)
-    catboost_aspek.fit(X_train_aspek.toarray(), y_train_aspek)  # <--- FIX disini
+    _, _, y_train_aspek, y_test_aspek = train_test_split(X, y_aspek, test_size=0.2, random_state=42)
+else:
+    y_train_aspek = y_test_aspek = None
+
+# --- Train Models (pakai underscore _X supaya Streamlit gak error cache) ---
+@st.cache_resource
+def train_models(_X, y_sentimen, y_aspek=None):
+    gbc_sentimen = GradientBoostingClassifier(random_state=42)
+    gbc_sentimen.fit(_X, y_sentimen)
+
+    catboost_sentimen = CatBoostClassifier(verbose=0, random_state=42)
+    catboost_sentimen.fit(_X.toarray(), y_sentimen)
+
+    if y_aspek is not None:
+        gbc_aspek = GradientBoostingClassifier(random_state=42)
+        gbc_aspek.fit(_X, y_aspek)
+
+        catboost_aspek = CatBoostClassifier(verbose=0, random_state=42)
+        catboost_aspek.fit(_X.toarray(), y_aspek)
+
+        return gbc_sentimen, catboost_sentimen, gbc_aspek, catboost_aspek
+
+    return gbc_sentimen, catboost_sentimen, None, None
+
+gbc_sentimen, catboost_sentimen, gbc_aspek, catboost_aspek = train_models(X_train, y_train_sentimen, y_train_aspek)
 
 # --- Streamlit App ---
+
 st.markdown("<h1 style='text-align: center;'>Analisis Kepuasan Pengguna Shopee 🛒</h1>", unsafe_allow_html=True)
 st.write("Prediksi Aspek dan Sentimen Ulasan Shopee")
 
 # --- Display Data Ulasan ---
 st.subheader("Data Ulasan Shopee")
 
-df_display = df[['Ulasan_Clean', 'Aspek', 'Sentimen']]
+df_display = df[['Ulasan_Clean', 'Aspek', 'Sentimen']] if 'Aspek' in df.columns else df[['Ulasan_Clean', 'Sentimen']]
 
 if 'lihat_selengkapnya' not in st.session_state:
     st.session_state.lihat_selengkapnya = False
@@ -123,11 +137,11 @@ if st.session_state.input_text_saved != "":
         with st.spinner("Sedang memproses prediksi..."):
             input_vec = vectorizer.transform([st.session_state.input_text_saved])
 
-            pred_sentimen_cat = catboost_sentimen.predict(input_vec.toarray())[0]  # <--- FIX disini
+            pred_sentimen_cat = catboost_sentimen.predict(input_vec.toarray())[0]
             pred_sentimen_gbc = gbc_sentimen.predict(input_vec)[0]
 
             if y_aspek is not None:
-                pred_aspek_cat = catboost_aspek.predict(input_vec.toarray())[0]  # <--- FIX disini
+                pred_aspek_cat = catboost_aspek.predict(input_vec.toarray())[0]
                 pred_aspek_gbc = gbc_aspek.predict(input_vec)[0]
             else:
                 pred_aspek_cat = "Unknown"
@@ -152,15 +166,15 @@ if st.session_state.input_text_saved != "":
                 }])
             ], ignore_index=True)
 
+# --- Display Results ---
+st.subheader("Hasil Prediksi per Model")
+
 if "data_pred_per_model" not in st.session_state:
     st.session_state.data_pred_per_model = {
         "CatBoost": pd.DataFrame(columns=["Ulasan", "Aspek", "Sentimen"]),
         "GradientBoosting": pd.DataFrame(columns=["Ulasan", "Aspek", "Sentimen"]),
         "Gabungan (Voting)": pd.DataFrame(columns=["Ulasan", "Aspek", "Sentimen"]),
     }
-
-# --- Display Results ---
-st.subheader("Hasil Prediksi per Model")
 
 for model_name, df_model in st.session_state.data_pred_per_model.items():
     st.write(f"### {model_name}")
