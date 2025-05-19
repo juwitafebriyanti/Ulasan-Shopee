@@ -144,7 +144,7 @@ if st.button("Simpan Ulasan"):
 if st.session_state.input_text_saved != "":
     st.success(f"Ulasan disimpan: {st.session_state.input_text_saved}")
 
-    selected_model = st.selectbox("Pilih Model untuk Prediksi", ("CatBoost", "GradientBoosting", "Gabungan (Voting)"))
+    selected_model = st.selectbox("Pilih Model untuk Prediksi", ("GradientBoosting", "CatBoost", "Gabungan (Voting)"))
 
     predict_btn = st.button("Prediksi dengan Model Terpilih")
 
